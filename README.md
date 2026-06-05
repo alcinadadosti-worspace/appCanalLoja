@@ -19,11 +19,24 @@ e mostra:
   uma bolinha de saúde geral e, ao abrir, o scorecard completo.
 - **Alertas automáticos:** o painel destaca sozinho os maiores desvios
   (ex.: *"desconto 63% do GMV (rede 31%) · R$ 308 acima do padrão"*).
-- **Série temporal automática:** como a planilha é acumulada,
-  *venda do dia = acúmulo de hoje − acúmulo de ontem*. O app captura um snapshot
-  a cada acesso e monta sozinho a evolução e a projeção do mês — **sem mudar seu
-  fluxo**. Esse histórico fica **no aparelho** de quem acessa (não é compartilhado);
-  para histórico compartilhado, o caminho é versionar os acúmulos no Git.
+- **Série temporal por ciclo (confiável e compartilhada):** como a planilha é
+  acumulada, *venda do dia = acúmulo de hoje − acúmulo do dia anterior*. O painel
+  mostra **venda do dia**, **acumulado do ciclo**, **dia N do ciclo** e
+  **ritmo/dia**. A virada de ciclo é detectada **sozinha** (quando o acumulado
+  cai/zera) — não é preciso informar quantos dias tem o ciclo.
+- **Projeção do ciclo:** aparece só depois que o histórico já registrou **ao menos
+  um ciclo completo**; aí o app **aprende o tamanho típico do ciclo** e projeta o
+  fechamento pelo ritmo atual. Antes disso, não inventa número.
+
+### De onde vem o histórico (GitHub Action)
+
+A série temporal não depende de quem abre o painel. Uma **GitHub Action**
+(`.github/workflows/historico.yml`) roda **a cada envio do `acumulo.csv`**,
+calcula os totais da rede (via `parseGerencial.js`) e grava um ponto datado em
+**`historico.json`**, commitando de volta. Assim o histórico é **completo e
+compartilhado** (todos os aparelhos veem o mesmo), capturando as 3 atualizações
+diárias automaticamente. Os snapshots em `localStorage` do navegador são apenas
+um *fallback* para antes do primeiro registro do histórico.
 
 O painel exibe **sempre a planilha publicada** (`acumulo.csv` do repositório),
 então **todos que abrirem a URL veem o mesmo resultado**. A própria planilha já

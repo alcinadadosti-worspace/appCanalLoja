@@ -672,24 +672,30 @@ if (typeof window !== 'undefined') {
     if (!extra) return '';
     var parts = [];
     if (isNum(extra.vendaHoje)) {
-      parts.push('<div class="trend__big"><span class="trend__k">Venda de hoje (parcial)</span>'
+      parts.push('<div class="trend__big"><span class="trend__k">Venda do dia (parcial)</span>'
         + '<span class="trend__v">' + fBRL(extra.vendaHoje) + '</span>'
-        + (extra.prevDataFmt ? '<span class="trend__vs">desde o acumulado de ' + esc(extra.prevDataFmt) + '</span>' : '') + '</div>');
+        + (extra.prevDataFmt ? '<span class="trend__vs">desde o acumulado de ' + esc(extra.prevDataFmt) + '</span>'
+                             : '<span class="trend__vs">1º dia do ciclo</span>') + '</div>');
     }
-    if (isNum(extra.projMes)) {
-      parts.push('<div class="trend__big"><span class="trend__k">Projeção do mês</span>'
-        + '<span class="trend__v">' + fBRL(extra.projMes) + '</span>'
+    if (isNum(extra.projCiclo)) {
+      parts.push('<div class="trend__big"><span class="trend__k">Projeção do ciclo</span>'
+        + '<span class="trend__v">' + fBRL(extra.projCiclo) + '</span>'
         + '<span class="trend__vs">ritmo atual · ' + esc(extra.projInfo || '') + '</span></div>');
     }
+    var info = [];
+    if (isNum(extra.diaCiclo)) info.push('dia ' + extra.diaCiclo + ' do ciclo');
+    if (isNum(extra.ritmo)) info.push('ritmo ' + fBRL(extra.ritmo) + '/dia');
+    var infoLine = info.length ? '<div class="trend__vs" style="margin-top:4px">' + esc(info.join(' · ')) + '</div>' : '';
     var realDeltas = (extra.serie || []).filter(function (p) { return isNum(p.gmv); });
     var spk = '';
     if (realDeltas.length >= 2) {
       spk = '<div class="trend__spark">' + sparkline(extra.serie.map(function (p) { return p.gmv; }), '#1f5743')
-        + '</div><div class="trend__l">venda diária estimada (GMV)</div>';
+        + '</div><div class="trend__l">venda diária no ciclo (GMV)</div>';
     }
-    if (!parts.length && !spk) return '';
-    return '<section class="trend"><div class="trend__row">' + parts.join('') + '</div>' + spk
-      + '<div class="trend__note">estimado a partir das capturas feitas neste aparelho</div></section>';
+    if (!parts.length && !spk && !infoLine) return '';
+    var fonte = extra.fonte === 'historico' ? 'histórico compartilhado (atualiza a cada envio do acumulo)' : 'capturas neste aparelho (fallback)';
+    return '<section class="trend"><div class="trend__row">' + parts.join('') + '</div>' + infoLine + spk
+      + '<div class="trend__note">fonte: ' + fonte + '</div></section>';
   }
 
   /* ---------- mini-gráfico (sparkline) ---------- */
@@ -1008,11 +1014,12 @@ if (typeof window !== 'undefined') {
   }
   function isN(v){ return typeof v === 'number' && isFinite(v); }
 
-  // ---- série temporal automática ----------------------------------------
-  // A planilha é ACUMULADA, então a venda de um dia = acúmulo de hoje − acúmulo
-  // do dia anterior. Cada acesso grava 1 snapshot do total da rede por data
-  // (o último do dia prevalece). Isso recupera "dia + dias passados" sem mudar
-  // o fluxo: o histórico se forma sozinho ao longo do mês, neste aparelho.
+  // ---- série temporal -----------------------------------------------------
+  // Fonte CONFIÁVEL e compartilhada: historico.json, gravado pela GitHub Action
+  // a cada envio do acumulo.csv. Estes snapshots locais (localStorage) são só um
+  // FALLBACK por aparelho, caso o histórico ainda não exista. A venda de um dia
+  // = acúmulo de hoje − acúmulo do dia anterior; a virada de ciclo é detectada
+  // sozinha (queda do acumulado).
   var SNAP_KEY = 'painelACQUA.snapshots.v1';
   function loadSnaps(){ try{ return JSON.parse(localStorage.getItem(SNAP_KEY)) || {}; }catch(_){ return {}; } }
   function saveSnaps(s){ try{ localStorage.setItem(SNAP_KEY, JSON.stringify(s)); }catch(_){} }
@@ -1026,31 +1033,65 @@ if (typeof window !== 'undefined') {
     }
     return snaps;
   }
-  function computeExtra(dateISO, total, snaps){
-    var extra = { vendaHoje: null, prevDataFmt: null, serie: [], projMes: null, projInfo: '' };
+  // Histórico COMPARTILHADO (gravado pela GitHub Action a cada envio do acumulo).
+  function fetchHistorico(){
+    return fetch('historico.json', { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .catch(function(){ return null; });
+  }
+  // Junta histórico compartilhado + snapshots locais + acumulo atual → 1 ponto por data.
+  function mergePoints(hist, snaps, todayDate, total){
+    var byDate = {};
+    Object.keys(snaps || {}).forEach(function(d){ if(isN(snaps[d].gmv)) byDate[d] = { data: d, gmv: snaps[d].gmv }; });
+    if(hist && Array.isArray(hist.snapshots)){
+      hist.snapshots.forEach(function(s){ if(s && s.date && isN(s.gmv)) byDate[s.date] = { data: s.date, gmv: s.gmv }; });
+    }
+    if(total && isN(total.gmv)) byDate[todayDate] = { data: todayDate, gmv: total.gmv };  // hoje é o mais recente
+    return Object.keys(byDate).sort().map(function(d){ return byDate[d]; });
+  }
+  // Início de cada ciclo = ponto onde o acumulado CAI vs. o anterior (reset).
+  function cycleBoundaries(points){
+    var b = [0];
+    for(var i=1;i<points.length;i++){ if(points[i].gmv < points[i-1].gmv - 0.01) b.push(i); }
+    return b;
+  }
+  function median(a){
+    if(!a.length) return null;
+    var s = a.slice().sort(function(x,y){ return x - y; }), m = Math.floor(s.length/2);
+    return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
+  }
+  // Tendência cycle-aware: venda do dia, acumulado/ritmo do ciclo e projeção
+  // (esta só quando já há ciclo(s) completo(s) no histórico p/ inferir o tamanho).
+  function computeCycleExtra(todayDate, total, hist, snaps){
+    var extra = { vendaHoje:null, prevDataFmt:null, serie:[], diaCiclo:null, ritmo:null,
+                  projCiclo:null, projInfo:'', fonte: (hist && hist.snapshots && hist.snapshots.length) ? 'historico' : 'local' };
     if(!total || !isN(total.gmv)) return extra;
-    var dates = Object.keys(snaps).sort();
-    // venda do dia = acúmulo de hoje − acúmulo do registro anterior (guarda reset de período)
-    var prev = null;
-    for(var i=0;i<dates.length;i++){ if(dates[i] < dateISO) prev = dates[i]; }
-    if(prev && isN(snaps[prev].gmv)){
-      var delta = total.gmv - snaps[prev].gmv;
-      if(delta >= 0){ extra.vendaHoje = delta; extra.prevDataFmt = PV.fDATA(prev); }
+    var points = mergePoints(hist, snaps, todayDate, total);
+    if(!points.length) return extra;
+    var bnds = cycleBoundaries(points);
+    var cyclePts = points.slice(bnds[bnds.length-1]);
+    var acum = points[points.length-1].gmv;
+    extra.diaCiclo = cyclePts.length;
+    extra.ritmo = cyclePts.length > 0 ? acum / cyclePts.length : null;
+    if(cyclePts.length >= 2){
+      var d = acum - cyclePts[cyclePts.length-2].gmv;
+      if(d >= 0){ extra.vendaHoje = d; extra.prevDataFmt = PV.fDATA(cyclePts[cyclePts.length-2].data); }
+    } else if(cyclePts.length === 1){
+      extra.vendaHoje = acum;          // 1º dia do ciclo: a venda do dia é o próprio acumulado
     }
-    // série de incrementos diários (mini-gráfico)
-    for(var j=1;j<dates.length;j++){
-      var a = snaps[dates[j-1]].gmv, b = snaps[dates[j]].gmv;
-      if(isN(a) && isN(b)){ var d = b - a; extra.serie.push({ data: dates[j], gmv: d >= 0 ? d : null }); }
+    for(var j=1;j<cyclePts.length;j++){
+      var inc = cyclePts[j].gmv - cyclePts[j-1].gmv;
+      extra.serie.push({ data: cyclePts[j].data, gmv: inc >= 0 ? inc : null });
     }
-    // projeção de fechamento do mês (assume acúmulo do mês corrente)
-    var today = new Date();
-    var dia = today.getDate();
-    var diasNoMes = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-    var pos = extra.serie.map(function(p){ return p.gmv; }).filter(function(x){ return isN(x) && x > 0; });
-    var avgDaily = pos.length ? pos.reduce(function(a,b){ return a+b; }, 0) / pos.length : (dia > 0 ? total.gmv / dia : 0);
-    if(avgDaily > 0 && dia < diasNoMes){
-      extra.projMes = total.gmv + avgDaily * (diasNoMes - dia);
-      extra.projInfo = pos.length ? ('média de ' + pos.length + ' dia(s)') : 'run-rate do mês';
+    // tamanho típico do ciclo, aprendido dos ciclos COMPLETOS já observados
+    var lens = [];
+    for(var k=1;k<bnds.length;k++){ lens.push(bnds[k] - bnds[k-1]); }
+    if(lens.length && isN(extra.ritmo)){
+      var len = median(lens);
+      if(len > extra.diaCiclo){
+        extra.projCiclo = acum + extra.ritmo * (len - extra.diaCiclo);
+        extra.projInfo = 'ciclo ~' + len + ' dias (observado)';
+      }
     }
     return extra;
   }
@@ -1105,9 +1146,12 @@ if (typeof window !== 'undefined') {
       if(!lojas.length) throw new Error('planilha vazia');
       var total = P.computeNetworkTotal(lojas);
       STORE = {}; STORE[data] = { data: data, lojas: lojas, total: total };
-      var snaps = recordSnapshot(data, total);     // grava o snapshot do dia (último prevalece)
-      var extra = computeExtra(data, total, snaps);
-      render(data, { atualizado: fmtAtualizado(o.when), extra: extra });
+      var snaps = recordSnapshot(data, total);     // fallback local (último do dia prevalece)
+      render(data, { atualizado: fmtAtualizado(o.when), extra: computeCycleExtra(data, total, null, snaps) });
+      // busca o histórico compartilhado e recalcula a tendência quando chegar
+      fetchHistorico().then(function(hist){
+        render(data, { atualizado: fmtAtualizado(o.when), extra: computeCycleExtra(data, total, hist, snaps) });
+      });
     }).catch(function(){
       // acumulo.csv inacessível (ex.: aberto via file://) → exibe o exemplo embarcado.
       try{

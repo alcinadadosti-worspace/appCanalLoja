@@ -667,37 +667,6 @@ if (typeof window !== 'undefined') {
     var more = list.length > top.length ? '<li class="al al--more">+' + (list.length - top.length) + ' outro(s) ponto(s) de atenção</li>' : '';
     return '<section class="alerts"><div class="alerts__h">Pontos de atenção · rede</div><ul class="al-list">' + items + more + '</ul></section>';
   }
-  // bloco de tendência (venda do dia + projeção do mês), alimentado por snapshots do app.
-  function trendHTML(extra) {
-    if (!extra) return '';
-    var parts = [];
-    if (isNum(extra.vendaHoje)) {
-      parts.push('<div class="trend__big"><span class="trend__k">Venda do dia (parcial)</span>'
-        + '<span class="trend__v">' + fBRL(extra.vendaHoje) + '</span>'
-        + (extra.prevDataFmt ? '<span class="trend__vs">desde o acumulado de ' + esc(extra.prevDataFmt) + '</span>'
-                             : '<span class="trend__vs">1º dia do ciclo</span>') + '</div>');
-    }
-    if (isNum(extra.projCiclo)) {
-      parts.push('<div class="trend__big"><span class="trend__k">Projeção do ciclo</span>'
-        + '<span class="trend__v">' + fBRL(extra.projCiclo) + '</span>'
-        + '<span class="trend__vs">ritmo atual · ' + esc(extra.projInfo || '') + '</span></div>');
-    }
-    var info = [];
-    if (isNum(extra.diaCiclo)) info.push('dia ' + extra.diaCiclo + ' do ciclo');
-    if (isNum(extra.ritmo)) info.push('ritmo ' + fBRL(extra.ritmo) + '/dia');
-    var infoLine = info.length ? '<div class="trend__vs" style="margin-top:4px">' + esc(info.join(' · ')) + '</div>' : '';
-    var realDeltas = (extra.serie || []).filter(function (p) { return isNum(p.gmv); });
-    var spk = '';
-    if (realDeltas.length >= 2) {
-      spk = '<div class="trend__spark">' + sparkline(extra.serie.map(function (p) { return p.gmv; }), '#1f5743')
-        + '</div><div class="trend__l">venda diária no ciclo (GMV)</div>';
-    }
-    if (!parts.length && !spk && !infoLine) return '';
-    var fonte = extra.fonte === 'historico' ? 'histórico compartilhado (atualiza a cada envio do acumulo)' : 'capturas neste aparelho (fallback)';
-    return '<section class="trend"><div class="trend__row">' + parts.join('') + '</div>' + infoLine + spk
-      + '<div class="trend__note">fonte: ' + fonte + '</div></section>';
-  }
-
   /* ---------- mini-gráfico (sparkline) ---------- */
   function sparkline(values, color, markIndex) {
     var pts = values.map(function (v) { return isNum(v) ? v : null; });
@@ -760,7 +729,7 @@ if (typeof window !== 'undefined') {
 
   /* ---------- estado + DOM ---------- */
   function $(id) { return document.getElementById(id); }
-  var state = { data: null, series: null, metric: 'gmv', mode: 'dia', expanded: {}, extra: null };
+  var state = { data: null, series: null, metric: 'gmv', mode: 'dia', expanded: {} };
   var bound = false;
 
   function colorIndexer(meta) {
@@ -926,7 +895,6 @@ if (typeof window !== 'undefined') {
 
     host.innerHTML = (multi ? segHTML(mode) : '')
       + heroHTML(total, m, rows.length, heroOpts)
-      + (mode === 'dia' ? trendHTML(state.extra) : '')
       + alertsHTML(rows, total)
       + pillsHTML(m)
       + '<div class="cards">' + cards + '</div>';
@@ -958,7 +926,6 @@ if (typeof window !== 'undefined') {
     opts = opts || {};
     state.data = opts.data;
     state.series = opts.series || { datas: [], lojas: [], dias: {}, totais: {} };
-    state.extra = opts.extra || null;
     draw();
   }
   function showEmpty(msg) {
@@ -1012,89 +979,6 @@ if (typeof window !== 'undefined') {
     function p(n){ n=String(n); return n.length<2 ? '0'+n : n; }
     return p(when.getDate())+'/'+p(when.getMonth()+1)+'/'+when.getFullYear()+' '+p(when.getHours())+':'+p(when.getMinutes());
   }
-  function isN(v){ return typeof v === 'number' && isFinite(v); }
-
-  // ---- série temporal -----------------------------------------------------
-  // Fonte CONFIÁVEL e compartilhada: historico.json, gravado pela GitHub Action
-  // a cada envio do acumulo.csv. Estes snapshots locais (localStorage) são só um
-  // FALLBACK por aparelho, caso o histórico ainda não exista. A venda de um dia
-  // = acúmulo de hoje − acúmulo do dia anterior; a virada de ciclo é detectada
-  // sozinha (queda do acumulado).
-  var SNAP_KEY = 'painelACQUA.snapshots.v1';
-  function loadSnaps(){ try{ return JSON.parse(localStorage.getItem(SNAP_KEY)) || {}; }catch(_){ return {}; } }
-  function saveSnaps(s){ try{ localStorage.setItem(SNAP_KEY, JSON.stringify(s)); }catch(_){} }
-  function recordSnapshot(dateISO, total){
-    var snaps = loadSnaps();
-    if(total && isN(total.gmv)){
-      snaps[dateISO] = { gmv: total.gmv, receitaLiquida: total.receitaLiquida, qtdBoletos: total.qtdBoletos };
-      var ks = Object.keys(snaps).sort();
-      while(ks.length > 62){ delete snaps[ks.shift()]; }   // mantém ~2 meses
-      saveSnaps(snaps);
-    }
-    return snaps;
-  }
-  // Histórico COMPARTILHADO (gravado pela GitHub Action a cada envio do acumulo).
-  function fetchHistorico(){
-    return fetch('historico.json', { cache: 'no-store' })
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .catch(function(){ return null; });
-  }
-  // Junta histórico compartilhado + snapshots locais + acumulo atual → 1 ponto por data.
-  function mergePoints(hist, snaps, todayDate, total){
-    var byDate = {};
-    Object.keys(snaps || {}).forEach(function(d){ if(isN(snaps[d].gmv)) byDate[d] = { data: d, gmv: snaps[d].gmv }; });
-    if(hist && Array.isArray(hist.snapshots)){
-      hist.snapshots.forEach(function(s){ if(s && s.date && isN(s.gmv)) byDate[s.date] = { data: s.date, gmv: s.gmv }; });
-    }
-    if(total && isN(total.gmv)) byDate[todayDate] = { data: todayDate, gmv: total.gmv };  // hoje é o mais recente
-    return Object.keys(byDate).sort().map(function(d){ return byDate[d]; });
-  }
-  // Início de cada ciclo = ponto onde o acumulado CAI vs. o anterior (reset).
-  function cycleBoundaries(points){
-    var b = [0];
-    for(var i=1;i<points.length;i++){ if(points[i].gmv < points[i-1].gmv - 0.01) b.push(i); }
-    return b;
-  }
-  function median(a){
-    if(!a.length) return null;
-    var s = a.slice().sort(function(x,y){ return x - y; }), m = Math.floor(s.length/2);
-    return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
-  }
-  // Tendência cycle-aware: venda do dia, acumulado/ritmo do ciclo e projeção
-  // (esta só quando já há ciclo(s) completo(s) no histórico p/ inferir o tamanho).
-  function computeCycleExtra(todayDate, total, hist, snaps){
-    var extra = { vendaHoje:null, prevDataFmt:null, serie:[], diaCiclo:null, ritmo:null,
-                  projCiclo:null, projInfo:'', fonte: (hist && hist.snapshots && hist.snapshots.length) ? 'historico' : 'local' };
-    if(!total || !isN(total.gmv)) return extra;
-    var points = mergePoints(hist, snaps, todayDate, total);
-    if(!points.length) return extra;
-    var bnds = cycleBoundaries(points);
-    var cyclePts = points.slice(bnds[bnds.length-1]);
-    var acum = points[points.length-1].gmv;
-    extra.diaCiclo = cyclePts.length;
-    extra.ritmo = cyclePts.length > 0 ? acum / cyclePts.length : null;
-    if(cyclePts.length >= 2){
-      var d = acum - cyclePts[cyclePts.length-2].gmv;
-      if(d >= 0){ extra.vendaHoje = d; extra.prevDataFmt = PV.fDATA(cyclePts[cyclePts.length-2].data); }
-    } else if(cyclePts.length === 1){
-      extra.vendaHoje = acum;          // 1º dia do ciclo: a venda do dia é o próprio acumulado
-    }
-    for(var j=1;j<cyclePts.length;j++){
-      var inc = cyclePts[j].gmv - cyclePts[j-1].gmv;
-      extra.serie.push({ data: cyclePts[j].data, gmv: inc >= 0 ? inc : null });
-    }
-    // tamanho típico do ciclo, aprendido dos ciclos COMPLETOS já observados
-    var lens = [];
-    for(var k=1;k<bnds.length;k++){ lens.push(bnds[k] - bnds[k-1]); }
-    if(lens.length && isN(extra.ritmo)){
-      var len = median(lens);
-      if(len > extra.diaCiclo){
-        extra.projCiclo = acum + extra.ritmo * (len - extra.diaCiclo);
-        extra.projInfo = 'ciclo ~' + len + ' dias (observado)';
-      }
-    }
-    return extra;
-  }
   function datasOrdenadas(){ return Object.keys(STORE).sort(); }
   function dataMaisRecente(){ var d=datasOrdenadas(); return d.length? d[d.length-1] : null; }
 
@@ -1116,7 +1000,7 @@ if (typeof window !== 'undefined') {
     opts = opts || {};
     CUR = data;
     if(!STORE[data]){ PV.showEmpty('Sem dados para exibir.'); return; }
-    PV.renderPanel({ data: data, series: buildSeries(), extra: opts.extra || null });
+    PV.renderPanel({ data: data, series: buildSeries() });
     var nl = (STORE[data].lojas||[]).length;
     var foot;
     if(PREVIEW){
@@ -1146,12 +1030,7 @@ if (typeof window !== 'undefined') {
       if(!lojas.length) throw new Error('planilha vazia');
       var total = P.computeNetworkTotal(lojas);
       STORE = {}; STORE[data] = { data: data, lojas: lojas, total: total };
-      var snaps = recordSnapshot(data, total);     // fallback local (último do dia prevalece)
-      render(data, { atualizado: fmtAtualizado(o.when), extra: computeCycleExtra(data, total, null, snaps) });
-      // busca o histórico compartilhado e recalcula a tendência quando chegar
-      fetchHistorico().then(function(hist){
-        render(data, { atualizado: fmtAtualizado(o.when), extra: computeCycleExtra(data, total, hist, snaps) });
-      });
+      render(data, { atualizado: fmtAtualizado(o.when) });
     }).catch(function(){
       // acumulo.csv inacessível (ex.: aberto via file://) → exibe o exemplo embarcado.
       try{
@@ -1193,7 +1072,7 @@ if (typeof window !== 'undefined') {
   }
   function exportJSON(){
     var blob=new Blob([JSON.stringify(STORE,null,2)],{type:'application/json'});
-    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='painel-gerencial-historico.json';
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='painel-gerencial.json';
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },0);
   }
 

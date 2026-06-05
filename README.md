@@ -5,13 +5,15 @@ relatório `acumulo.csv` (formato `GerencialVendas` da rede ACQUA / O Boticário
 e mostra:
 
 - número grande da rede (GMV, Receita, Ticket, Boletos, Fidelidade…);
-- **bloco de tendência:** venda do dia (parcial) e projeção de fechamento do mês,
-  derivadas automaticamente da própria planilha acumulada (ver "Análises" abaixo);
 - **pontos de atenção:** alertas automáticos por loja, ordenados por impacto em R$;
 - cartões por loja com **semáforo de saúde** e **scorecard vs. rede** (toque para abrir);
 - seletor de métrica que reordena/destaca o indicador.
 
-## Análises (derivadas da planilha)
+A planilha enviada já é o **acumulado do ciclo** (do início do ciclo até o dia
+atual), então o painel mostra apenas a planilha vigente — **sem guardar histórico**.
+Para atualizar, você simplesmente troca a planilha.
+
+## Análises (derivadas da planilha vigente)
 
 - **KPIs de eficiência:** desconto % do GMV, B1 % do GMV, ticket, itens/boleto e
   trocas % da receita — cada um comparado com a **referência da rede**.
@@ -19,24 +21,6 @@ e mostra:
   uma bolinha de saúde geral e, ao abrir, o scorecard completo.
 - **Alertas automáticos:** o painel destaca sozinho os maiores desvios
   (ex.: *"desconto 63% do GMV (rede 31%) · R$ 308 acima do padrão"*).
-- **Série temporal por ciclo (confiável e compartilhada):** como a planilha é
-  acumulada, *venda do dia = acúmulo de hoje − acúmulo do dia anterior*. O painel
-  mostra **venda do dia**, **acumulado do ciclo**, **dia N do ciclo** e
-  **ritmo/dia**. A virada de ciclo é detectada **sozinha** (quando o acumulado
-  cai/zera) — não é preciso informar quantos dias tem o ciclo.
-- **Projeção do ciclo:** aparece só depois que o histórico já registrou **ao menos
-  um ciclo completo**; aí o app **aprende o tamanho típico do ciclo** e projeta o
-  fechamento pelo ritmo atual. Antes disso, não inventa número.
-
-### De onde vem o histórico (GitHub Action)
-
-A série temporal não depende de quem abre o painel. Uma **GitHub Action**
-(`.github/workflows/historico.yml`) roda **a cada envio do `acumulo.csv`**,
-calcula os totais da rede (via `parseGerencial.js`) e grava um ponto datado em
-**`historico.json`**, commitando de volta. Assim o histórico é **completo e
-compartilhado** (todos os aparelhos veem o mesmo), capturando as 3 atualizações
-diárias automaticamente. Os snapshots em `localStorage` do navegador são apenas
-um *fallback* para antes do primeiro registro do histórico.
 
 O painel exibe **sempre a planilha publicada** (`acumulo.csv` do repositório),
 então **todos que abrirem a URL veem o mesmo resultado**. A própria planilha já

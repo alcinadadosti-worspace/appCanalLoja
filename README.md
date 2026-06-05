@@ -41,10 +41,13 @@ atualizar o painel para todos, basta substituir esse arquivo no GitHub:
 > O painel mostra a data/hora da última atualização (cabeçalho `Last-Modified`
 > do arquivo) no rodapé.
 
+> Atalho: o botão **Atualizar planilha** no painel abre direto a página de
+> upload do GitHub — envie o arquivo com o nome `acumulo.csv` para substituir.
+
 ### Conferir antes de publicar (opcional)
-No próprio painel, **Enviar CSV** (ou arrastar o arquivo) faz uma
-**pré-visualização local** — ela aparece só no seu aparelho e **não publica**.
-**Remover** descarta a pré-visualização e volta à planilha publicada.
+No próprio painel, **Pré-visualizar** (ou arrastar o arquivo) mostra uma
+**pré-visualização local** — aparece só no seu aparelho e **não publica**. O link
+*"Descartar e ver a publicada"* no rodapé volta à planilha do repositório.
 **⤓** exporta os dados em JSON e **Imprimir** gera um PDF.
 
 ## Deploy no Render (Static Site)

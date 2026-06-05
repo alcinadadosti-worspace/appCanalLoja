@@ -7,13 +7,9 @@ services:
     runtime: static
     # Não há build: é HTML estático puro.
     buildCommand: ""
-    # Publica a raiz do repositório (onde está o index.html).
+    # Publica a raiz do repositório (onde estão index.html e acumulo.csv).
     staticPublishPath: .
-    # Qualquer rota cai no app de página única.
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    # Sem rewrite catch-all: é página única e o acumulo.csv precisa ser servido como arquivo.
     headers:
       - path: /*
         name: X-Content-Type-Options

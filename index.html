@@ -199,11 +199,12 @@
     <div class="controls">
       <span class="pill" id="datePill"><span class="dot"></span><span id="dateText">—</span></span>
       <select id="dateSel" title="Selecionar data" class="hidden"></select>
-      <button class="btn btn--accent" id="updateBtn" title="Escolher o CSV e publicar — fica visível para TODOS">Adicionar planilha</button>
-      <button class="btn btn--danger" id="removeBtn" title="Apagar a planilha — some para TODOS">Remover planilha</button>
-      <button class="btn btn--ghost" id="uploadBtn" title="Pré-visualizar um CSV só neste aparelho (não publica)">Pré-visualizar</button>
+      <button class="btn btn--accent hidden" id="updateBtn" title="Escolher o CSV e publicar — fica visível para TODOS">Adicionar planilha</button>
+      <button class="btn btn--danger hidden" id="removeBtn" title="Apagar a planilha — some para TODOS">Remover planilha</button>
+      <button class="btn btn--ghost hidden" id="uploadBtn" title="Pré-visualizar um CSV só neste aparelho (não publica)">Pré-visualizar</button>
       <button class="btn btn--ghost" id="printBtn" title="Imprimir / salvar PDF">Imprimir</button>
       <button class="btn btn--ghost" id="exportBtn" title="Baixar a planilha atual em JSON">⤓</button>
+      <button class="btn btn--ghost" id="adminBtn" title="Entrar como administrador (adicionar/remover planilha)">Admin</button>
       <input type="file" accept=".csv" id="fileIn" class="file-in" multiple />
     </div>
   </header>
@@ -985,6 +986,24 @@ if (typeof window !== 'undefined') {
   function supaObjURL(){ return SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + SUPABASE_FILE; }
   function supaHeaders(extra){ var h = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }; if(extra){ for(var k in extra) h[k] = extra[k]; } return h; }
 
+  // === Admin (trava da interface por senha) ===
+  // Esconde Adicionar/Remover/Pré-visualizar; só aparecem após entrar com a senha.
+  var ADMIN_PIN = '76767';
+  var ADMIN_FLAG = 'painelACQUA.admin';
+  function isAdmin(){ try{ return localStorage.getItem(ADMIN_FLAG) === '1'; }catch(_){ return false; } }
+  function setAdmin(on){ try{ if(on) localStorage.setItem(ADMIN_FLAG,'1'); else localStorage.removeItem(ADMIN_FLAG); }catch(_){} applyAdminUI(); }
+  function applyAdminUI(){
+    var on = isAdmin();
+    ['updateBtn','removeBtn','uploadBtn'].forEach(function(id){ var b=$(id); if(b) b.classList.toggle('hidden', !on); });
+    var ab=$('adminBtn'); if(ab){ ab.textContent = on ? 'Sair' : 'Admin'; ab.title = on ? 'Sair do modo administrador' : 'Entrar como administrador (adicionar/remover planilha)'; }
+  }
+  function adminToggle(){
+    if(isAdmin()){ setAdmin(false); return; }
+    var p = prompt('Senha do administrador:');
+    if(p === null) return;                          // cancelou
+    if(p === ADMIN_PIN) setAdmin(true); else alert('Senha incorreta.');
+  }
+
   function fmtAtualizado(when){
     if(!when || isNaN(when.getTime())) return '';
     function p(n){ n=String(n); return n.length<2 ? '0'+n : n; }
@@ -1066,6 +1085,7 @@ if (typeof window !== 'undefined') {
 
   // Adicionar para TODOS = enviar a planilha ao cofre online (Supabase). Substitui a anterior.
   function publicarArquivo(file){
+    if(!isAdmin()){ alert('Entre como administrador para adicionar planilha.'); return; }
     if(!supaOn()){ alert('O cofre online (Supabase) ainda não foi configurado.'); return; }
     var fr = new FileReader();
     fr.onload = function(){
@@ -1089,6 +1109,7 @@ if (typeof window !== 'undefined') {
   }
   // Remover para TODOS = apagar a planilha do cofre online.
   function removerPlanilha(){
+    if(!isAdmin()){ alert('Entre como administrador para remover.'); return; }
     if(!supaOn()){ alert('O cofre online (Supabase) ainda não foi configurado.'); return; }
     if(!confirm('Remover a planilha para TODOS?\nO painel fica vazio até você adicionar outra.')) return;
     PV.showEmpty('Removendo planilha…');
@@ -1131,6 +1152,7 @@ if (typeof window !== 'undefined') {
     if(pendingMode === 'publish') publicarArquivo(f); else readFiles([f]);
   });
   $('removeBtn').addEventListener('click', removerPlanilha);
+  $('adminBtn').addEventListener('click', adminToggle);
   $('exportBtn').addEventListener('click', exportJSON);
   $('printBtn').addEventListener('click', function(){ window.print(); });
   var overlay=$('dropOverlay'); var dragDepth=0;
@@ -1150,7 +1172,8 @@ if (typeof window !== 'undefined') {
   var SAMPLE_B64 = "77u/TGlzdGFyIFBvciBMb2phcztHTVYtR01WO0dNVi1Cb2xldG8gbcOpZGlvO0dNVi1RdGQgZGUgYm9sZXRvcztHTVYtSXRlbnMgcG9yIGJvbGV0bztNZXRhIHJlY2VpdGEtTWV0YSByZWNlaXRhO01ldGEgcmVjZWl0YS1BdGluZ2ltZW50bztNZXRhIHJlY2VpdGEtQ3Jlc2NpbWVudG8gYW5vIGFudGVyaW9yO01ldGEgY29tcGxlbWVudGFyLU1ldGEgYm9sZXRvIG3DqWRpbztNZXRhIGNvbXBsZW1lbnRhci1BdGluZ2ltZW50byBtZXRhIGJvbGV0byBtw6lkaW87TWV0YSBjb21wbGVtZW50YXItTWV0YSBpdGVucyBwb3IgYm9sZXRvO01ldGEgY29tcGxlbWVudGFyLUF0aW5naW1lbnRvIGl0ZW5zIHBvciBib2xldG87VmFsb3JlcyBkZSB2ZW5kYXMtUmVjZWl0YSBsw61xdWlkYTtWYWxvcmVzIGRlIHZlbmRhcy1SZWNlaXRhIGzDrXF1aWRhICgtKSB0cm9jYXM7VmFsb3JlcyBkZSB2ZW5kYXMtQjE7RmlkZWxpZGFkZS1RdGQgZGUgYm9sZXRvcztGaWRlbGlkYWRlLVBlbmV0cmHDp8OjbyBib2xldG9zO0Rlc2NvbnRvcy1Ub3RhbCBkZSBkZXNjb250b3M7VHJvY2FzLVRyb2NhcztUcm9jYXMtUXRkIGRlIHRyb2NhcztDYXJ0w6NvIHByZXNlbnRlLVJlY2FyZ2E7UXVhbnRpdGF0aXZvLUIxCjI0MzAzIC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPTUVUSUNPUyBMVERBOzIuMDc0LDE3OzI1OSwyNzs4LDAwOzIsMjU7Ozs7Ozs7OzIuMDc0LDMwOzIuMDc0LDMwOzAsMDA7OCwwMDsxMDAsMDA7MTg1LDEwOzAsMDA7MCwwMDswLDAwOzAsMDAKMjQ2MTcgLSBBQ1FVQSBESVNUUklCVUlET1JBIERFIFBFUkZVTUVTIEUgQ09TTUVUSUNPUyBMVERBOzU3Myw3MjsxMTQsNzQ7NSwwMDsxLDYwOzs7Ozs7Ozs3NjMsNjI7NTczLDcyOzMxMCw4MDs1LDAwOzEwMCwwMDsxMzUsNTg7MTg5LDkwOzEsMDA7MCwwMDsyLDAwCjI0NjY4IC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPU01FVElDT1MgTFREQTs0LjgxOSwzMTszMDEsMjE7MTYsMDA7MywwNjs7Ozs7Ozs7NS4xMDIsODg7NS4xMDIsODg7OTUxLDA3OzE4LDAwOzgxLDgyOzczMSw4NzswLDAwOzAsMDA7MCwwMDsxMSwwMAoyNDY2OSAtIEFDUVVBIERJU1RSSUJVSURPUkEgREUgUEVSRlVNRVMgRSBDT1NNRVRJQ09TIExUREE7NS42MjUsNDQ7MjQ0LDU4OzIzLDAwOzIsNzQ7Ozs7Ozs7OzUuNjI1LDQ2OzUuNjI1LDQ2OzYxNyw0MDsyMywwMDsxMDAsMDA7MS40NjgsMjQ7MCwwMDswLDAwOzAsMDA7NiwwMAoyNDY3MCAtIEFDUVVBIERJU1RSSUJVSURPUkEgREUgUEVSRlVNRVMgRSBDT1NNRVRJQ09TIExUREE7Mi44ODUsMDA7MjQwLDQyOzEyLDAwOzIsMDg7Ozs7Ozs7OzMuMTM1LDYwOzMuMTM1LDYwOzEuMjUxLDI3OzExLDAwOzg0LDYyOzQ5NCw3OTswLDAwOzAsMDA7MCwwMDs2LDAwCjI0NjcxIC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPU01FVElDT1MgTFREQTsyLjgwNywzNDsyMTUsOTU7MTMsMDA7Miw0Njs7Ozs7Ozs7Mi44MDcsMzg7Mi44MDcsMzg7MTg0LDUyOzEzLDAwOzEwMCwwMDs1NjgsNjI7MCwwMDswLDAwOzQwMCwwMDsyLDAw";
   function b64ToBytes(b64){ var bin=atob(b64); var len=bin.length; var bytes=new Uint8Array(len); for(var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return bytes; }
 
-  // Ao abrir, carrega a planilha publicada (acumulo.csv).
+  // Ao abrir: aplica o modo admin (botões escondidos) e carrega a planilha.
+  applyAdminUI();
   carregarPublicada();
 })();
 </script>

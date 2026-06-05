@@ -29,12 +29,17 @@ apenas a planilha atual — não guarda histórico.
 
 ## Atualização da planilha (direto no app)
 
-Sem GitHub, sem renomear. Os botões trocam a planilha para **todos**:
+Sem GitHub, sem renomear. Quem abre o link só **vê** o painel. Para gerenciar,
+clique em **Admin** e entre com a senha — aí aparecem os botões de gestão:
 
 - **Adicionar planilha** → escolhe o CSV (qualquer nome) → publica; todos veem na hora.
 - **Remover planilha** → apaga; o painel fica **vazio para todos**.
 - **Pré-visualizar** → confere um CSV só no seu aparelho (não publica).
-- **⤓** exporta os dados em JSON e **Imprimir** gera um PDF.
+- **⤓** exporta os dados em JSON e **Imprimir** gera um PDF (sempre visíveis).
+
+> A senha do admin fica em `ADMIN_PIN`, no topo do `index.html`. É uma **trava
+> de interface** (esconde os botões); como o app é estático, não substitui um
+> login de verdade — adequada para uso interno.
 
 ## Configuração do cofre (Supabase) — uma vez
 

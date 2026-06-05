@@ -105,7 +105,7 @@
   .card__chev{flex:none;color:var(--muted);font-size:1rem;width:18px;text-align:center}
 
   .card__detail{max-height:0;overflow:hidden;transition:max-height .34s cubic-bezier(.2,.7,.2,1)}
-  .card.is-open .card__detail{max-height:280px}
+  .card.is-open .card__detail{max-height:640px}
   .card__detail-in{padding:2px 15px 16px;border-top:1px solid var(--line)}
   .kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-top:12px}
   .kv{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
@@ -123,12 +123,46 @@
   .empty h2{font-family:"Fraunces",serif;color:var(--ink);margin:.2em 0}
   code{font-family:"IBM Plex Mono",monospace;font-size:.85em;background:rgba(19,51,42,.06);padding:1px 5px;border-radius:5px}
 
+  /* semáforo (saúde vs. rede) */
+  .sem--g{background:var(--up)} .sem--y{background:var(--brass)} .sem--r{background:var(--down)} .sem--n{background:var(--line-strong)}
+  .card__flags{display:flex;align-items:center;gap:7px;flex:none}
+  .hdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+
+  /* bloco de alertas / pontos de atenção */
+  .alerts{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 15px;margin-top:11px}
+  .alerts--ok{color:var(--green-700);font-size:.86rem;font-weight:600;display:flex;gap:8px;align-items:center}
+  .alerts__h{font-family:"Public Sans";font-weight:700;font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  .al-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .al{font-size:.85rem;color:var(--ink);border-left:3px solid var(--down);padding:2px 0 2px 11px;line-height:1.35}
+  .al--more{border-left-color:var(--line-strong);color:var(--muted);font-size:.8rem}
+  .al__store{font-weight:700;color:var(--green-900)}
+
+  /* scorecard no detalhe do cartão */
+  .sc-grid{display:grid;grid-template-columns:1fr;gap:0;margin:6px 0 2px}
+  .sc{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:.84rem}
+  .sc__dot{width:8px;height:8px;border-radius:50%;flex:none}
+  .sc__k{color:var(--muted);flex:none;min-width:74px}
+  .sc__v{font-family:"IBM Plex Mono",monospace;font-weight:700;font-variant-numeric:tabular-nums}
+  .sc__ref{margin-left:auto;font-size:.74rem;color:var(--muted);font-family:"IBM Plex Mono",monospace}
+  @media (min-width:480px){ .sc-grid{grid-template-columns:1fr 1fr;gap:0 22px} }
+
+  /* tendência (venda do dia + projeção) */
+  .trend{background:linear-gradient(155deg,#fbf9f1,#fcfbf5);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 15px;margin-top:11px}
+  .trend__row{display:flex;flex-wrap:wrap;gap:14px 28px}
+  .trend__big{display:flex;flex-direction:column;gap:1px}
+  .trend__k{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .trend__v{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:1.5rem;color:var(--green-900);font-variant-numeric:tabular-nums;line-height:1.1}
+  .trend__vs{font-size:.74rem;color:var(--muted)}
+  .trend__spark{margin-top:12px}
+  .trend__l{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+  .trend__note{font-size:.7rem;color:var(--muted);margin-top:9px;font-style:italic}
+
   .drop{position:fixed;inset:0;z-index:50;background:rgba(19,51,42,.72);backdrop-filter:blur(2px);display:none;place-items:center;color:#f3efe2}
   .drop.show{display:grid}
   .drop__box{border:2px dashed var(--brass-soft);border-radius:20px;padding:40px 44px;text-align:center;font-family:"Fraunces",serif;font-size:1.25rem}
   .drop__box span{display:block;font-family:"Public Sans";font-size:.82rem;color:var(--sage);margin-top:8px}
 
-  @media (min-width:560px){ .kv-grid{grid-template-columns:1fr 1fr 1fr} .card.is-open .card__detail{max-height:280px} }
+  @media (min-width:560px){ .kv-grid{grid-template-columns:1fr 1fr 1fr} .card.is-open .card__detail{max-height:640px} }
   .donut-wrap2{display:flex;justify-content:center;padding:8px 0 2px}
   .donut2{width:172px;height:172px;display:block}
   .d2-big{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:30px;fill:var(--green-900)}
@@ -146,7 +180,7 @@
     .hero__label,.hero__big{color:#13332a !important}
     .hero__meta,.hero__vs,.hero__sub{color:#444 !important}
     .hero__sub b{color:#111 !important}
-    .hero__spark,.card__detail{display:none !important}
+    .hero__spark,.card__detail,.trend{display:none !important}
     .delta{background:none !important}
     .delta--up{color:#1f5743 !important}
     .delta--down{color:#b04a30 !important}
@@ -541,6 +575,123 @@ if (typeof window !== 'undefined') {
     ['Trocas (R$)', 'brl', 'trocasValor'], ['Trocas (qtd)', 'int', 'trocasQtd'], ['Cartão presente', 'brl', 'recargaCartaoPresente']
   ];
 
+  /* ---------- benchmark loja × rede (KPIs derivados, semáforo, alertas) ---------- */
+  // KPIs comparáveis. dir:'up' = maior é melhor; 'down' = menor é melhor (custo).
+  // derived:true = razão calculada na hora; abs:true = limiar absoluto (fidelidade).
+  var BENCH = [
+    { key: 'boletoMedio',          label: 'Ticket',     kind: 'brl', dir: 'up' },
+    { key: 'itensBoleto',          label: 'Itens/bol.', kind: 'num', dir: 'up' },
+    { key: 'descontoPct',          label: 'Desconto',   kind: 'pct', dir: 'down', derived: true },
+    { key: 'b1Pct',                label: 'B1',         kind: 'pct', dir: 'up',   derived: true },
+    { key: 'trocaPct',             label: 'Trocas',     kind: 'pct', dir: 'down', derived: true, optional: true },
+    { key: 'fidelidadePenetracao', label: 'Fidelidade', kind: 'pct', dir: 'up',  abs: true }
+  ];
+  // valor da loja para um KPI (resolve os derivados)
+  function benchVal(r, key) {
+    if (key === 'descontoPct') return num(r.gmv) > 0 ? num(r.descontos) / num(r.gmv) * 100 : null;
+    if (key === 'b1Pct')       return num(r.gmv) > 0 ? num(r.b1Valor) / num(r.gmv) * 100 : null;
+    if (key === 'trocaPct')    return num(r.receitaLiquida) > 0 ? num(r.trocasValor) / num(r.receitaLiquida) * 100 : null;
+    return isNum(r[key]) ? r[key] : null;
+  }
+  // referência da rede (agregada) para o mesmo KPI
+  function benchRef(total, key) {
+    if (!total) return null;
+    if (key === 'descontoPct') return num(total.gmv) > 0 ? num(total.descontos) / num(total.gmv) * 100 : null;
+    if (key === 'b1Pct')       return num(total.gmv) > 0 ? num(total.b1Valor) / num(total.gmv) * 100 : null;
+    if (key === 'trocaPct')    return num(total.receitaLiquida) > 0 ? num(total.trocasValor) / num(total.receitaLiquida) * 100 : null;
+    return isNum(total[key]) ? total[key] : null;
+  }
+  // semáforo: 'g' verde, 'y' amarelo, 'r' vermelho, '' neutro
+  function sem(v, ref, dir, abs) {
+    if (!isNum(v) || !isNum(ref) || ref === 0) return '';
+    if (abs) { return v >= 95 ? 'g' : v >= 85 ? 'y' : 'r'; }          // fidelidade: limiar absoluto
+    var good = dir === 'down' ? (ref - v) / ref : (v - ref) / ref;    // desvio relativo, já orientado
+    return good > 0.12 ? 'g' : good < -0.12 ? 'r' : 'y';
+  }
+  // saúde geral da loja: vermelho só com 3+ KPIs ruins; verde sem nenhum ruim.
+  function storeHealth(r, total) {
+    var g = 0, rd = 0;
+    BENCH.forEach(function (b) {
+      var s = sem(benchVal(r, b.key), benchRef(total, b.key), b.dir, b.abs);
+      if (s === 'g') g++; else if (s === 'r') rd++;
+    });
+    if (rd >= 3) return 'r';
+    if (rd >= 1) return 'y';
+    return g >= 2 ? 'g' : 'y';
+  }
+  // scorecard (no detalhe do cartão): cada KPI com valor, semáforo e referência da rede.
+  function scorecardHTML(r, total) {
+    var rows = BENCH.map(function (b) {
+      var ref = benchRef(total, b.key);
+      if (b.optional && (!isNum(ref) || ref === 0)) return '';        // trocas zeradas: oculta
+      var v = benchVal(r, b.key), f = fmt(b.kind), s = sem(v, ref, b.dir, b.abs) || 'n';
+      return '<div class="sc"><span class="sc__dot sem--' + s + '"></span>'
+        + '<span class="sc__k">' + esc(b.label) + '</span>'
+        + '<span class="sc__v">' + f(v) + '</span>'
+        + '<span class="sc__ref">rede ' + f(ref) + '</span></div>';
+    }).join('');
+    return '<div class="card__spark-l">Scorecard · loja vs. rede</div><div class="sc-grid">' + rows + '</div>';
+  }
+  // motor de alertas: junta os KPIs "vermelhos" de todas as lojas e ordena por impacto (R$).
+  function buildAlerts(rows, total) {
+    var out = [];
+    rows.forEach(function (r) {
+      var nome = r.nome || r.pdv, gmv = num(r.gmv);
+      BENCH.forEach(function (b) {
+        var ref = benchRef(total, b.key), v = benchVal(r, b.key);
+        if (!isNum(v) || !isNum(ref) || ref === 0) return;
+        if (sem(v, ref, b.dir, b.abs) !== 'r') return;
+        var msg, sev;
+        if (b.key === 'descontoPct')      { var ex = (v - ref) / 100 * gmv; sev = ex;                msg = 'desconto ' + fPCT(v) + ' do GMV (rede ' + fPCT(ref) + ') · ' + fBRL(ex) + ' acima do padrão'; }
+        else if (b.key === 'trocaPct')    { sev = (v - ref) / 100 * num(r.receitaLiquida);          msg = 'trocas ' + fPCT(v) + ' da receita (rede ' + fPCT(ref) + ')'; }
+        else if (b.key === 'boletoMedio') { sev = (ref - v) * num(r.qtdBoletos);                     msg = 'ticket ' + fBRL(v) + ' (rede ' + fBRL(ref) + ') · ' + fPCT((ref - v) / ref * 100) + ' abaixo'; }
+        else if (b.key === 'itensBoleto') { sev = (ref - v) / ref * gmv;                             msg = fNUM(v) + ' itens/boleto (rede ' + fNUM(ref) + ') · menor giro por venda'; }
+        else if (b.key === 'b1Pct')       { sev = (ref - v) / 100 * gmv;                             msg = 'B1 ' + fPCT(v) + ' do GMV (rede ' + fPCT(ref) + ')'; }
+        else if (b.key === 'fidelidadePenetracao') { sev = (ref - v) / 100 * gmv;                    msg = 'fidelidade ' + fPCT(v) + ' (abaixo de 85%)'; }
+        else { sev = 0; msg = b.label + ' abaixo da rede'; }
+        out.push({ store: nome, msg: msg, severity: sev || 0 });
+      });
+    });
+    out.sort(function (a, b) { return b.severity - a.severity; });
+    return out;
+  }
+  function alertsHTML(rows, total) {
+    var list = buildAlerts(rows, total);
+    if (!list.length) {
+      return '<section class="alerts alerts--ok"><span>✓</span> Todas as lojas em linha com a rede — sem pontos de atenção.</section>';
+    }
+    var top = list.slice(0, 4);
+    var items = top.map(function (a) {
+      return '<li class="al"><span class="al__store">' + esc(a.store) + ':</span> ' + a.msg + '</li>';
+    }).join('');
+    var more = list.length > top.length ? '<li class="al al--more">+' + (list.length - top.length) + ' outro(s) ponto(s) de atenção</li>' : '';
+    return '<section class="alerts"><div class="alerts__h">Pontos de atenção · rede</div><ul class="al-list">' + items + more + '</ul></section>';
+  }
+  // bloco de tendência (venda do dia + projeção do mês), alimentado por snapshots do app.
+  function trendHTML(extra) {
+    if (!extra) return '';
+    var parts = [];
+    if (isNum(extra.vendaHoje)) {
+      parts.push('<div class="trend__big"><span class="trend__k">Venda de hoje (parcial)</span>'
+        + '<span class="trend__v">' + fBRL(extra.vendaHoje) + '</span>'
+        + (extra.prevDataFmt ? '<span class="trend__vs">desde o acumulado de ' + esc(extra.prevDataFmt) + '</span>' : '') + '</div>');
+    }
+    if (isNum(extra.projMes)) {
+      parts.push('<div class="trend__big"><span class="trend__k">Projeção do mês</span>'
+        + '<span class="trend__v">' + fBRL(extra.projMes) + '</span>'
+        + '<span class="trend__vs">ritmo atual · ' + esc(extra.projInfo || '') + '</span></div>');
+    }
+    var realDeltas = (extra.serie || []).filter(function (p) { return isNum(p.gmv); });
+    var spk = '';
+    if (realDeltas.length >= 2) {
+      spk = '<div class="trend__spark">' + sparkline(extra.serie.map(function (p) { return p.gmv; }), '#1f5743')
+        + '</div><div class="trend__l">venda diária estimada (GMV)</div>';
+    }
+    if (!parts.length && !spk) return '';
+    return '<section class="trend"><div class="trend__row">' + parts.join('') + '</div>' + spk
+      + '<div class="trend__note">estimado a partir das capturas feitas neste aparelho</div></section>';
+  }
+
   /* ---------- mini-gráfico (sparkline) ---------- */
   function sparkline(values, color, markIndex) {
     var pts = values.map(function (v) { return isNum(v) ? v : null; });
@@ -603,7 +754,7 @@ if (typeof window !== 'undefined') {
 
   /* ---------- estado + DOM ---------- */
   function $(id) { return document.getElementById(id); }
-  var state = { data: null, series: null, metric: 'gmv', mode: 'dia', expanded: {} };
+  var state = { data: null, series: null, metric: 'gmv', mode: 'dia', expanded: {}, extra: null };
   var bound = false;
 
   function colorIndexer(meta) {
@@ -695,6 +846,7 @@ if (typeof window !== 'undefined') {
     var chip = (ctx.mode !== 'periodo' && prevRow) ? deltaChip(v, num(prevRow[m.key]), m.kind, m.cost) : '';
     var rcls = rank === 0 ? ' r1' : rank === 1 ? ' r2' : rank === 2 ? ' r3' : '';
     var open = !!state.expanded[pdv];
+    var health = storeHealth(r, ctx.total);
     var meta = (sharePct != null ? sharePct + '% da rede · ' : '')
       + fINT(r.qtdBoletos) + ' boletos · ticket ' + fBRL(r.boletoMedio);
     // rosca do indicador selecionado (participação da loja na rede)
@@ -706,7 +858,8 @@ if (typeof window !== 'undefined') {
       + '<div class="card__main" data-card="' + esc(pdv) + '">'
       + '<div class="card__rank' + rcls + '">' + (rank + 1) + '</div>'
       + '<div class="card__body">'
-      + '<div class="card__top"><span class="card__name">' + esc(name) + '</span>' + chip + '</div>'
+      + '<div class="card__top"><span class="card__name">' + esc(name) + '</span>'
+      + '<span class="card__flags"><span class="hdot sem--' + health + '" title="saúde vs. rede"></span>' + chip + '</span></div>'
       + '<div class="card__val">' + fmt(m.kind)(v) + '</div>'
       + '<div class="card__bar"><i style="width:' + (frac * 100).toFixed(1) + '%"></i></div>'
       + '<div class="card__meta">' + meta + '</div>'
@@ -714,6 +867,7 @@ if (typeof window !== 'undefined') {
       + '<div class="card__chev">' + (open ? '▾' : '▸') + '</div>'
       + '</div>'
       + '<div class="card__detail"><div class="card__detail-in">'
+      + scorecardHTML(r, ctx.total)
       + '<div class="card__spark-l">' + esc(dLabel) + '</div>'
       + donutRing(frac, color, dBig, dSmall)
       + '</div></div></article>';
@@ -754,7 +908,7 @@ if (typeof window !== 'undefined') {
     var max = rows.reduce(function (a, r) { return Math.max(a, num(r[m.key])); }, 0);
     // ordem FIXA por GMV (não reordena ao trocar de indicador)
     var sorted = rows.slice().sort(function (a, b) { return num(b.gmv) - num(a.gmv); });
-    var ctx = { sum: sum, max: max, prev: prev, mode: mode, colorOf: colorIndexer(meta) };
+    var ctx = { sum: sum, max: max, prev: prev, mode: mode, total: total, colorOf: colorIndexer(meta) };
     var cards = sorted.map(function (r, i) { return cardHTML(r, i, m, ctx); }).join('');
 
     var dt = $('dateText'); if (dt) dt.textContent = (mode === 'periodo') ? 'Período' : fDATA(state.data);
@@ -766,6 +920,8 @@ if (typeof window !== 'undefined') {
 
     host.innerHTML = (multi ? segHTML(mode) : '')
       + heroHTML(total, m, rows.length, heroOpts)
+      + (mode === 'dia' ? trendHTML(state.extra) : '')
+      + alertsHTML(rows, total)
       + pillsHTML(m)
       + '<div class="cards">' + cards + '</div>';
     ensureBound();
@@ -796,6 +952,7 @@ if (typeof window !== 'undefined') {
     opts = opts || {};
     state.data = opts.data;
     state.series = opts.series || { datas: [], lojas: [], dias: {}, totais: {} };
+    state.extra = opts.extra || null;
     draw();
   }
   function showEmpty(msg) {
@@ -849,6 +1006,54 @@ if (typeof window !== 'undefined') {
     function p(n){ n=String(n); return n.length<2 ? '0'+n : n; }
     return p(when.getDate())+'/'+p(when.getMonth()+1)+'/'+when.getFullYear()+' '+p(when.getHours())+':'+p(when.getMinutes());
   }
+  function isN(v){ return typeof v === 'number' && isFinite(v); }
+
+  // ---- série temporal automática ----------------------------------------
+  // A planilha é ACUMULADA, então a venda de um dia = acúmulo de hoje − acúmulo
+  // do dia anterior. Cada acesso grava 1 snapshot do total da rede por data
+  // (o último do dia prevalece). Isso recupera "dia + dias passados" sem mudar
+  // o fluxo: o histórico se forma sozinho ao longo do mês, neste aparelho.
+  var SNAP_KEY = 'painelACQUA.snapshots.v1';
+  function loadSnaps(){ try{ return JSON.parse(localStorage.getItem(SNAP_KEY)) || {}; }catch(_){ return {}; } }
+  function saveSnaps(s){ try{ localStorage.setItem(SNAP_KEY, JSON.stringify(s)); }catch(_){} }
+  function recordSnapshot(dateISO, total){
+    var snaps = loadSnaps();
+    if(total && isN(total.gmv)){
+      snaps[dateISO] = { gmv: total.gmv, receitaLiquida: total.receitaLiquida, qtdBoletos: total.qtdBoletos };
+      var ks = Object.keys(snaps).sort();
+      while(ks.length > 62){ delete snaps[ks.shift()]; }   // mantém ~2 meses
+      saveSnaps(snaps);
+    }
+    return snaps;
+  }
+  function computeExtra(dateISO, total, snaps){
+    var extra = { vendaHoje: null, prevDataFmt: null, serie: [], projMes: null, projInfo: '' };
+    if(!total || !isN(total.gmv)) return extra;
+    var dates = Object.keys(snaps).sort();
+    // venda do dia = acúmulo de hoje − acúmulo do registro anterior (guarda reset de período)
+    var prev = null;
+    for(var i=0;i<dates.length;i++){ if(dates[i] < dateISO) prev = dates[i]; }
+    if(prev && isN(snaps[prev].gmv)){
+      var delta = total.gmv - snaps[prev].gmv;
+      if(delta >= 0){ extra.vendaHoje = delta; extra.prevDataFmt = PV.fDATA(prev); }
+    }
+    // série de incrementos diários (mini-gráfico)
+    for(var j=1;j<dates.length;j++){
+      var a = snaps[dates[j-1]].gmv, b = snaps[dates[j]].gmv;
+      if(isN(a) && isN(b)){ var d = b - a; extra.serie.push({ data: dates[j], gmv: d >= 0 ? d : null }); }
+    }
+    // projeção de fechamento do mês (assume acúmulo do mês corrente)
+    var today = new Date();
+    var dia = today.getDate();
+    var diasNoMes = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+    var pos = extra.serie.map(function(p){ return p.gmv; }).filter(function(x){ return isN(x) && x > 0; });
+    var avgDaily = pos.length ? pos.reduce(function(a,b){ return a+b; }, 0) / pos.length : (dia > 0 ? total.gmv / dia : 0);
+    if(avgDaily > 0 && dia < diasNoMes){
+      extra.projMes = total.gmv + avgDaily * (diasNoMes - dia);
+      extra.projInfo = pos.length ? ('média de ' + pos.length + ' dia(s)') : 'run-rate do mês';
+    }
+    return extra;
+  }
   function datasOrdenadas(){ return Object.keys(STORE).sort(); }
   function dataMaisRecente(){ var d=datasOrdenadas(); return d.length? d[d.length-1] : null; }
 
@@ -870,7 +1075,7 @@ if (typeof window !== 'undefined') {
     opts = opts || {};
     CUR = data;
     if(!STORE[data]){ PV.showEmpty('Sem dados para exibir.'); return; }
-    PV.renderPanel({ data: data, series: buildSeries() });
+    PV.renderPanel({ data: data, series: buildSeries(), extra: opts.extra || null });
     var nl = (STORE[data].lojas||[]).length;
     var foot;
     if(PREVIEW){
@@ -898,8 +1103,11 @@ if (typeof window !== 'undefined') {
       var data = todayISO();                       // acumulo.csv não traz data no nome; rótulo é "Atual"
       var lojas = P.parseGerencial(new Uint8Array(o.buf), data);
       if(!lojas.length) throw new Error('planilha vazia');
-      STORE = {}; STORE[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
-      render(data, { atualizado: fmtAtualizado(o.when) });
+      var total = P.computeNetworkTotal(lojas);
+      STORE = {}; STORE[data] = { data: data, lojas: lojas, total: total };
+      var snaps = recordSnapshot(data, total);     // grava o snapshot do dia (último prevalece)
+      var extra = computeExtra(data, total, snaps);
+      render(data, { atualizado: fmtAtualizado(o.when), extra: extra });
     }).catch(function(){
       // acumulo.csv inacessível (ex.: aberto via file://) → exibe o exemplo embarcado.
       try{

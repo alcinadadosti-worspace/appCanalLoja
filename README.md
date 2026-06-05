@@ -5,8 +5,25 @@ relatório `acumulo.csv` (formato `GerencialVendas` da rede ACQUA / O Boticário
 e mostra:
 
 - número grande da rede (GMV, Receita, Ticket, Boletos, Fidelidade…);
-- cartões por loja (toque para abrir todas as métricas e a rosca de participação);
+- **bloco de tendência:** venda do dia (parcial) e projeção de fechamento do mês,
+  derivadas automaticamente da própria planilha acumulada (ver "Análises" abaixo);
+- **pontos de atenção:** alertas automáticos por loja, ordenados por impacto em R$;
+- cartões por loja com **semáforo de saúde** e **scorecard vs. rede** (toque para abrir);
 - seletor de métrica que reordena/destaca o indicador.
+
+## Análises (derivadas da planilha)
+
+- **KPIs de eficiência:** desconto % do GMV, B1 % do GMV, ticket, itens/boleto e
+  trocas % da receita — cada um comparado com a **referência da rede**.
+- **Semáforo 🟢🟡🔴:** cada KPI da loja é classificado vs. a rede; o cartão mostra
+  uma bolinha de saúde geral e, ao abrir, o scorecard completo.
+- **Alertas automáticos:** o painel destaca sozinho os maiores desvios
+  (ex.: *"desconto 63% do GMV (rede 31%) · R$ 308 acima do padrão"*).
+- **Série temporal automática:** como a planilha é acumulada,
+  *venda do dia = acúmulo de hoje − acúmulo de ontem*. O app captura um snapshot
+  a cada acesso e monta sozinho a evolução e a projeção do mês — **sem mudar seu
+  fluxo**. Esse histórico fica **no aparelho** de quem acessa (não é compartilhado);
+  para histórico compartilhado, o caminho é versionar os acúmulos no Git.
 
 O painel exibe **sempre a planilha publicada** (`acumulo.csv` do repositório),
 então **todos que abrirem a URL veem o mesmo resultado**. A própria planilha já

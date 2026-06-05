@@ -975,9 +975,9 @@ if (typeof window !== 'undefined') {
   var PREVIEW = false;       // true = exibindo planilha enviada neste aparelho (não publicada)
   var ACUMULO_URL = 'acumulo.csv';   // fallback enquanto o Supabase não está configurado
 
-  // === Supabase (cofre online da planilha) — PREENCHER após criar o projeto ===
-  var SUPABASE_URL = '';     // ex.: https://xxxxxxxx.supabase.co
-  var SUPABASE_KEY = '';     // chave anon public (texto longo que começa com eyJ...)
+  // === Supabase (cofre online da planilha) ===
+  var SUPABASE_URL = 'https://pigwfnzowefwbvjpxxif.supabase.co';
+  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZ3dmbnpvd2Vmd2J2anB4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2ODMxMzYsImV4cCI6MjA5NjI1OTEzNn0.NxXZwwRw6DIH5NyTEb2FWrx6JDe2JcBY2UhY-ERDPNQ';
   var SUPABASE_BUCKET = 'planilha';
   var SUPABASE_FILE = 'acumulo.csv';
   function supaOn(){ return !!(SUPABASE_URL && SUPABASE_KEY); }

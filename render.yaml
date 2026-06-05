@@ -1,0 +1,20 @@
+# Render Blueprint — Static Site
+# Deploy automático do Painel Gerencial ACQUA (app offline de arquivo único).
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: appcanalloja
+    runtime: static
+    # Não há build: é HTML estático puro.
+    buildCommand: ""
+    # Publica a raiz do repositório (onde está o index.html).
+    staticPublishPath: .
+    # Qualquer rota cai no app de página única.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff

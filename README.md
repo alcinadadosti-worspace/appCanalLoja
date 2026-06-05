@@ -1,26 +1,37 @@
 # Painel Gerencial ACQUA · O Boticário (offline)
 
-Painel gerencial **mobile-first** de arquivo único (`index.html`) que lê os
-relatórios `GerencialVendas-DD-MM-AAAA.csv` da rede ACQUA / O Boticário,
-guarda o histórico no `localStorage` do navegador e mostra:
+Painel gerencial **mobile-first** de arquivo único (`index.html`) que lê o
+relatório `acumulo.csv` (formato `GerencialVendas` da rede ACQUA / O Boticário)
+e mostra:
 
-- número grande da rede com variação **vs. dia anterior** e mini-gráfico de evolução;
+- número grande da rede (GMV, Receita, Ticket, Boletos, Fidelidade…);
 - cartões por loja (toque para abrir todas as métricas e a rosca de participação);
-- seletor de métrica (GMV, Receita, Ticket, Boletos, Fidelidade, Penetração, Descontos, B1);
-- modos **Dia** e **Período** (quando há 2+ datas importadas).
+- seletor de métrica que reordena/destaca o indicador.
 
-Tudo roda no navegador — **sem servidor, sem rede**. Os CSVs nunca saem do
-dispositivo.
+O painel exibe **sempre a planilha publicada** (`acumulo.csv` do repositório),
+então **todos que abrirem a URL veem o mesmo resultado**. A própria planilha já
+vem **acumulada** (resultado do dia + dias anteriores somados), por isso o app
+mostra apenas a planilha atual — não guarda histórico.
 
-## Como usar
+## Fluxo de atualização (3x ao dia)
 
-1. Abra o site (ou o `index.html` localmente).
-2. Clique em **Enviar CSV** (ou arraste o arquivo) — a data é lida do nome
-   `GerencialVendas-DD-MM-AAAA.csv`.
-3. Importe os CSVs de cada dia: o histórico **acumula** por data, habilitando
-   o comparativo diário e o modo Período.
-4. **Remover** apaga só a planilha exibida; **⤓** exporta o histórico em JSON;
-   **Imprimir** gera um PDF do painel.
+A fonte de verdade é o arquivo **`acumulo.csv`** na raiz do repositório. Para
+atualizar o painel para todos, basta substituir esse arquivo no GitHub:
+
+1. Abra o repositório no GitHub e clique em **`acumulo.csv`**.
+2. Clique no ícone de lápis (**Edit**) ou em **Upload files** para enviar a
+   versão nova (mantendo o nome `acumulo.csv`).
+3. **Commit changes** na branch `main`.
+4. O Render republica sozinho em ~1 min e o painel passa a mostrar os novos números.
+
+> O painel mostra a data/hora da última atualização (cabeçalho `Last-Modified`
+> do arquivo) no rodapé.
+
+### Conferir antes de publicar (opcional)
+No próprio painel, **Enviar CSV** (ou arrastar o arquivo) faz uma
+**pré-visualização local** — ela aparece só no seu aparelho e **não publica**.
+**Remover** descarta a pré-visualização e volta à planilha publicada.
+**⤓** exporta os dados em JSON e **Imprimir** gera um PDF.
 
 ## Deploy no Render (Static Site)
 

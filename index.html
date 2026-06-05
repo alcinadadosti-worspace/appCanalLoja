@@ -839,26 +839,15 @@ if (typeof window !== 'undefined') {
     return d.getFullYear()+'-'+mm+'-'+dd;
   }
 
-  var LS_KEY = 'painelGerencialACQUA.v1';
-  var TOUCH_KEY = 'painelGerencialACQUA.touched';
-  var STORE = {};
+  var STORE = {};            // sempre 1 planilha por vez (a "acumulada" atual)
   var CUR = null;
-  var lsOK = false;
-  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); lsOK = true; } catch(_){ lsOK = false; }
-  function loadStore(){ if(!lsOK) return; try{ var raw=localStorage.getItem(LS_KEY); if(raw) STORE=JSON.parse(raw)||{}; }catch(_){ STORE={}; } }
-  function saveStore(){ if(!lsOK) return; try{ localStorage.setItem(LS_KEY, JSON.stringify(STORE)); }catch(_){} }
-  function setTouched(){ if(lsOK){ try{ localStorage.setItem(TOUCH_KEY,'1'); }catch(_){} } }
-  function isTouched(){ if(!lsOK) return false; try{ return localStorage.getItem(TOUCH_KEY)==='1'; }catch(_){ return false; } }
+  var PREVIEW = false;       // true = exibindo planilha enviada neste aparelho (não publicada)
+  var ACUMULO_URL = 'acumulo.csv';
 
-  function ingest(buffer, filename, opts){
-    opts = opts || {};
-    var data = P.parseDataFromFilename(filename) || opts.fallbackData || todayISO();
-    if(opts.skipIfExists && STORE[data]) return data;
-    var lojas = P.parseGerencial(buffer, data);
-    if(!lojas.length) throw new Error('Nenhuma loja encontrada no arquivo.');
-    STORE[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
-    saveStore();
-    return data;
+  function fmtAtualizado(when){
+    if(!when || isNaN(when.getTime())) return '';
+    function p(n){ n=String(n); return n.length<2 ? '0'+n : n; }
+    return p(when.getDate())+'/'+p(when.getMonth()+1)+'/'+when.getFullYear()+' '+p(when.getHours())+':'+p(when.getMinutes());
   }
   function datasOrdenadas(){ return Object.keys(STORE).sort(); }
   function dataMaisRecente(){ var d=datasOrdenadas(); return d.length? d[d.length-1] : null; }
@@ -877,57 +866,78 @@ if (typeof window !== 'undefined') {
     return { datas: datas, lojas: lojas, dias: dias, totais: totais };
   }
 
-  function render(data){
+  function render(data, opts){
+    opts = opts || {};
     CUR = data;
-    if(!STORE[data]){ PV.showEmpty('Nenhum dado para esta data.'); return; }
+    if(!STORE[data]){ PV.showEmpty('Sem dados para exibir.'); return; }
     PV.renderPanel({ data: data, series: buildSeries() });
     var nl = (STORE[data].lojas||[]).length;
-    $('footNote').innerHTML = nl+' loja(s) · planilha de '+PV.fDATA(data)
-      + (lsOK ? '' : ' · <i>(só nesta sessão)</i>');
-  }
-  function refreshDateSelect(active){ PV.fillDates(datasOrdenadas(), active); }
-  function removePlanilha(){
-    var alvo = (CUR && STORE[CUR]) ? CUR : dataMaisRecente();
-    if(!alvo) return;                              // nada para remover
-    if(!confirm('Remover a planilha de '+PV.fDATA(alvo)+'?')) return;
-    delete STORE[alvo]; saveStore(); setTouched();
-    var prox = dataMaisRecente();
-    refreshDateSelect(prox);
-    if(prox){ render(prox); return; }              // mostra a próxima data disponível
-    CUR = null;
-    var dt = $('dateText'); if(dt) dt.textContent = '—';
-    PV.showEmpty('Importe a planilha do dia para visualizar.');
+    var foot;
+    if(PREVIEW){
+      foot = '<b>Pré-visualização local</b> · '+nl+' loja(s) · esta planilha <b>não está publicada</b>. '
+           + 'Para publicar para todos, suba o arquivo como <code>acumulo.csv</code> no GitHub. '
+           + '<a id="descartarPrev">Descartar e ver a publicada</a>';
+    } else {
+      foot = nl+' loja(s) · planilha publicada'
+           + (opts.atualizado ? ' · atualizada em '+opts.atualizado : '');
+    }
+    var fn=$('footNote');
+    if(fn){ fn.innerHTML = foot; var dp=$('descartarPrev'); if(dp) dp.addEventListener('click', carregarPublicada); }
+    var dt=$('dateText'); if(dt) dt.textContent = PREVIEW ? 'Pré-visualização' : 'Atual';
   }
 
-  // Importar ACUMULA: cada CSV é guardado por data; reimportar a mesma data sobrescreve.
-  function readFiles(fileList){
-    var files = Array.prototype.slice.call(fileList||[]).filter(function(f){ return /\.csv$/i.test(f.name); });
-    if(!files.length){ alert('Selecione um arquivo .csv (GerencialVendas-DD-MM-AAAA.csv).'); return; }
-    var pending=files.length, results=[], erros=[];
-    files.forEach(function(file){
-      var fr=new FileReader();
-      fr.onload=function(){
-        try{
-          var data = P.parseDataFromFilename(file.name) || todayISO();
-          var lojas = P.parseGerencial(new Uint8Array(fr.result), data);
-          if(!lojas.length) throw new Error('Nenhuma loja encontrada no arquivo.');
-          results.push({ data: data, lojas: lojas });
-        }catch(e){ erros.push(file.name+': '+e.message); }
-        if(--pending===0) commit(results, erros);
-      };
-      fr.onerror=function(){ erros.push(file.name+': falha ao ler'); if(--pending===0) commit(results, erros); };
-      fr.readAsArrayBuffer(file);
+  // Carrega a planilha PUBLICADA (acumulo.csv do repositório) e exibe.
+  function carregarPublicada(){
+    PREVIEW = false;
+    PV.showEmpty('Carregando planilha publicada…');
+    fetch(ACUMULO_URL, { cache: 'no-store' }).then(function(res){
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      var when = res.headers.get('Last-Modified');
+      return res.arrayBuffer().then(function(buf){ return { buf: buf, when: when ? new Date(when) : null }; });
+    }).then(function(o){
+      var data = todayISO();                       // acumulo.csv não traz data no nome; rótulo é "Atual"
+      var lojas = P.parseGerencial(new Uint8Array(o.buf), data);
+      if(!lojas.length) throw new Error('planilha vazia');
+      STORE = {}; STORE[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
+      render(data, { atualizado: fmtAtualizado(o.when) });
+    }).catch(function(){
+      // acumulo.csv inacessível (ex.: aberto via file://) → exibe o exemplo embarcado.
+      try{
+        var data = '2026-06-02';
+        var lojas = P.parseGerencial(b64ToBytes(SAMPLE_B64), data);
+        STORE = {}; STORE[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
+        PREVIEW = false; render(data, {});
+        var fn=$('footNote'); if(fn) fn.innerHTML = '<i>Exemplo embarcado</i> — não foi possível carregar <code>acumulo.csv</code> (abra pelo site publicado).';
+      }catch(e){ PV.showEmpty('Não foi possível carregar a planilha publicada (acumulo.csv).'); }
     });
   }
-  function commit(results, erros){
-    if(results.length){
-      // acumula por data (sobrescreve só as datas reimportadas); preserva o histórico
-      results.forEach(function(r){ STORE[r.data] = { data: r.data, lojas: r.lojas, total: P.computeNetworkTotal(r.lojas) }; });
-      saveStore(); setTouched();
-      var ds = datasOrdenadas(); var target = ds[ds.length-1];
-      refreshDateSelect(target); render(target);
-    }
-    if(erros && erros.length) alert('Não foi possível ler:\n'+erros.join('\n'));
+
+  // "Remover" no app: descarta a pré-visualização e volta à publicada.
+  // Para remover/trocar para TODOS, substitua o acumulo.csv no GitHub (veja o README).
+  function removePlanilha(){
+    if(PREVIEW){ carregarPublicada(); return; }
+    alert('A planilha na tela é a PUBLICADA (acumulo.csv), vista por todos.\n\n'
+        + 'Para trocá-la ou removê-la para todos, substitua o arquivo acumulo.csv no GitHub — '
+        + 'o site republica sozinho. Passo a passo no README.');
+  }
+
+  // Enviar CSV no app = PRÉ-VISUALIZAÇÃO local (não publica). Substitui o que está na tela.
+  function readFiles(fileList){
+    var files = Array.prototype.slice.call(fileList||[]).filter(function(f){ return /\.csv$/i.test(f.name); });
+    if(!files.length){ alert('Selecione um arquivo .csv.'); return; }
+    var file = files[0];                           // planilha única (já acumulada): usa a 1ª
+    var fr=new FileReader();
+    fr.onload=function(){
+      try{
+        var data = P.parseDataFromFilename(file.name) || todayISO();
+        var lojas = P.parseGerencial(new Uint8Array(fr.result), data);
+        if(!lojas.length) throw new Error('Nenhuma loja encontrada no arquivo.');
+        STORE = {}; STORE[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
+        PREVIEW = true; render(data, {});
+      }catch(e){ alert('Não foi possível ler '+file.name+':\n'+e.message); }
+    };
+    fr.onerror=function(){ alert('Falha ao ler '+file.name); };
+    fr.readAsArrayBuffer(file);
   }
   function exportJSON(){
     var blob=new Blob([JSON.stringify(STORE,null,2)],{type:'application/json'});
@@ -940,28 +950,18 @@ if (typeof window !== 'undefined') {
   $('exportBtn').addEventListener('click', exportJSON);
   $('printBtn').addEventListener('click', function(){ window.print(); });
   $('removeBtn').addEventListener('click', removePlanilha);
-  $('dateSel').addEventListener('change', function(e){ render(e.target.value); });
   var overlay=$('dropOverlay'); var dragDepth=0;
   window.addEventListener('dragenter', function(e){ e.preventDefault(); dragDepth++; overlay.classList.add('show'); });
   window.addEventListener('dragover', function(e){ e.preventDefault(); });
   window.addEventListener('dragleave', function(e){ e.preventDefault(); if(--dragDepth<=0){ dragDepth=0; overlay.classList.remove('show'); } });
   window.addEventListener('drop', function(e){ e.preventDefault(); dragDepth=0; overlay.classList.remove('show'); if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) readFiles(e.dataTransfer.files); });
 
-  /* exemplo embarcado (CSV real 02/06/2026, base64) */
+  /* exemplo embarcado (CSV real 02/06/2026, base64) — usado só se acumulo.csv não carregar */
   var SAMPLE_B64 = "77u/TGlzdGFyIFBvciBMb2phcztHTVYtR01WO0dNVi1Cb2xldG8gbcOpZGlvO0dNVi1RdGQgZGUgYm9sZXRvcztHTVYtSXRlbnMgcG9yIGJvbGV0bztNZXRhIHJlY2VpdGEtTWV0YSByZWNlaXRhO01ldGEgcmVjZWl0YS1BdGluZ2ltZW50bztNZXRhIHJlY2VpdGEtQ3Jlc2NpbWVudG8gYW5vIGFudGVyaW9yO01ldGEgY29tcGxlbWVudGFyLU1ldGEgYm9sZXRvIG3DqWRpbztNZXRhIGNvbXBsZW1lbnRhci1BdGluZ2ltZW50byBtZXRhIGJvbGV0byBtw6lkaW87TWV0YSBjb21wbGVtZW50YXItTWV0YSBpdGVucyBwb3IgYm9sZXRvO01ldGEgY29tcGxlbWVudGFyLUF0aW5naW1lbnRvIGl0ZW5zIHBvciBib2xldG87VmFsb3JlcyBkZSB2ZW5kYXMtUmVjZWl0YSBsw61xdWlkYTtWYWxvcmVzIGRlIHZlbmRhcy1SZWNlaXRhIGzDrXF1aWRhICgtKSB0cm9jYXM7VmFsb3JlcyBkZSB2ZW5kYXMtQjE7RmlkZWxpZGFkZS1RdGQgZGUgYm9sZXRvcztGaWRlbGlkYWRlLVBlbmV0cmHDp8OjbyBib2xldG9zO0Rlc2NvbnRvcy1Ub3RhbCBkZSBkZXNjb250b3M7VHJvY2FzLVRyb2NhcztUcm9jYXMtUXRkIGRlIHRyb2NhcztDYXJ0w6NvIHByZXNlbnRlLVJlY2FyZ2E7UXVhbnRpdGF0aXZvLUIxCjI0MzAzIC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPTUVUSUNPUyBMVERBOzIuMDc0LDE3OzI1OSwyNzs4LDAwOzIsMjU7Ozs7Ozs7OzIuMDc0LDMwOzIuMDc0LDMwOzAsMDA7OCwwMDsxMDAsMDA7MTg1LDEwOzAsMDA7MCwwMDswLDAwOzAsMDAKMjQ2MTcgLSBBQ1FVQSBESVNUUklCVUlET1JBIERFIFBFUkZVTUVTIEUgQ09TTUVUSUNPUyBMVERBOzU3Myw3MjsxMTQsNzQ7NSwwMDsxLDYwOzs7Ozs7Ozs3NjMsNjI7NTczLDcyOzMxMCw4MDs1LDAwOzEwMCwwMDsxMzUsNTg7MTg5LDkwOzEsMDA7MCwwMDsyLDAwCjI0NjY4IC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPU01FVElDT1MgTFREQTs0LjgxOSwzMTszMDEsMjE7MTYsMDA7MywwNjs7Ozs7Ozs7NS4xMDIsODg7NS4xMDIsODg7OTUxLDA3OzE4LDAwOzgxLDgyOzczMSw4NzswLDAwOzAsMDA7MCwwMDsxMSwwMAoyNDY2OSAtIEFDUVVBIERJU1RSSUJVSURPUkEgREUgUEVSRlVNRVMgRSBDT1NNRVRJQ09TIExUREE7NS42MjUsNDQ7MjQ0LDU4OzIzLDAwOzIsNzQ7Ozs7Ozs7OzUuNjI1LDQ2OzUuNjI1LDQ2OzYxNyw0MDsyMywwMDsxMDAsMDA7MS40NjgsMjQ7MCwwMDswLDAwOzAsMDA7NiwwMAoyNDY3MCAtIEFDUVVBIERJU1RSSUJVSURPUkEgREUgUEVSRlVNRVMgRSBDT1NNRVRJQ09TIExUREE7Mi44ODUsMDA7MjQwLDQyOzEyLDAwOzIsMDg7Ozs7Ozs7OzMuMTM1LDYwOzMuMTM1LDYwOzEuMjUxLDI3OzExLDAwOzg0LDYyOzQ5NCw3OTswLDAwOzAsMDA7MCwwMDs2LDAwCjI0NjcxIC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPU01FVElDT1MgTFREQTsyLjgwNywzNDsyMTUsOTU7MTMsMDA7Miw0Njs7Ozs7Ozs7Mi44MDcsMzg7Mi44MDcsMzg7MTg0LDUyOzEzLDAwOzEwMCwwMDs1NjgsNjI7MCwwMDswLDAwOzQwMCwwMDsyLDAw";
   function b64ToBytes(b64){ var bin=atob(b64); var len=bin.length; var bytes=new Uint8Array(len); for(var i=0;i<len;i++) bytes[i]=bin.charCodeAt(i); return bytes; }
 
-  function boot(){
-    loadStore();
-    // semeia o exemplo só no primeiro uso (sem dados e sem nada importado/removido antes).
-    if (datasOrdenadas().length === 0 && !isTouched()) {
-      try{ ingest(b64ToBytes(SAMPLE_B64), 'GerencialVendas-02-06-2026.csv', { skipIfExists: false }); }catch(e){}
-    }
-    var d = dataMaisRecente();
-    refreshDateSelect(d);
-    if(d) render(d); else PV.showEmpty('Importe a planilha do dia para visualizar.');
-  }
-  boot();
+  // Ao abrir, carrega a planilha publicada (acumulo.csv).
+  carregarPublicada();
 })();
 </script>
 </body>

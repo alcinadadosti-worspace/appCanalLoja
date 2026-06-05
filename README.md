@@ -29,20 +29,25 @@ mostra apenas a planilha atual — não guarda histórico.
 
 ## Fluxo de atualização (3x ao dia)
 
-A fonte de verdade é o arquivo **`acumulo.csv`** na raiz do repositório. Para
-atualizar o painel para todos, basta substituir esse arquivo no GitHub:
+A fonte de verdade é o arquivo **`acumulo.csv`** na raiz do repositório. O painel
+tem dois botões que abrem direto o GitHub:
 
-1. Abra o repositório no GitHub e clique em **`acumulo.csv`**.
-2. Clique no ícone de lápis (**Edit**) ou em **Upload files** para enviar a
-   versão nova (mantendo o nome `acumulo.csv`).
-3. **Commit changes** na branch `main`.
-4. O Render republica sozinho em ~1 min e o painel passa a mostrar os novos números.
+### Adicionar / atualizar planilha (para todos)
+1. Baixe a planilha do sistema (vem com qualquer nome).
+2. **Renomeie o arquivo para `acumulo.csv`** — esse é o passo-chave: com esse
+   nome, ele **substitui** o atual em vez de criar um arquivo novo.
+3. No painel, clique em **Adicionar planilha** → abre o upload do GitHub →
+   arraste o `acumulo.csv` → **Commit changes**.
+4. O Render republica sozinho em ~1 min; todos que abrirem a URL veem a nova.
 
-> O painel mostra a data/hora da última atualização (cabeçalho `Last-Modified`
-> do arquivo) no rodapé.
+> Como adicionar **substitui** o arquivo, no dia a dia você nem precisa remover
+> para trocar — adicionar já troca. O rodapé mostra a data/hora da última
+> atualização (cabeçalho `Last-Modified`).
 
-> Atalho: o botão **Atualizar planilha** no painel abre direto a página de
-> upload do GitHub — envie o arquivo com o nome `acumulo.csv` para substituir.
+### Remover planilha (para todos)
+Clique em **Remover planilha** → abre a página de exclusão do `acumulo.csv` no
+GitHub → **Commit changes**. O painel fica **vazio para todos** até você adicionar
+outra.
 
 ### Conferir antes de publicar (opcional)
 No próprio painel, **Pré-visualizar** (ou arrastar o arquivo) mostra uma

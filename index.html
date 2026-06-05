@@ -199,7 +199,8 @@
     <div class="controls">
       <span class="pill" id="datePill"><span class="dot"></span><span id="dateText">—</span></span>
       <select id="dateSel" title="Selecionar data" class="hidden"></select>
-      <button class="btn btn--accent" id="updateBtn" title="Trocar o acumulo.csv no GitHub — atualiza para TODOS os aparelhos">Atualizar planilha</button>
+      <button class="btn btn--accent" id="updateBtn" title="Subir a planilha no GitHub (renomeie para acumulo.csv) — fica visível para TODOS">Adicionar planilha</button>
+      <button class="btn btn--danger" id="removeBtn" title="Apagar a planilha no GitHub — some para TODOS">Remover planilha</button>
       <button class="btn btn--ghost" id="uploadBtn" title="Pré-visualizar um CSV só neste aparelho (não publica)">Pré-visualizar</button>
       <button class="btn btn--ghost" id="printBtn" title="Imprimir / salvar PDF">Imprimir</button>
       <button class="btn btn--ghost" id="exportBtn" title="Baixar a planilha atual em JSON">⤓</button>
@@ -1016,15 +1017,24 @@ if (typeof window !== 'undefined') {
     var dt=$('dateText'); if(dt) dt.textContent = PREVIEW ? 'Pré-visualização' : 'Atual';
   }
 
+  // Planilha apagada no GitHub → painel vazio para todos.
+  function mostrarVazioRemovida(){
+    STORE = {}; CUR = null; PREVIEW = false;
+    var dt = $('dateText'); if(dt) dt.textContent = '—';
+    PV.showEmpty('Nenhuma planilha publicada. Use "Adicionar planilha" para subir o acumulo.csv no GitHub.');
+  }
+
   // Carrega a planilha PUBLICADA (acumulo.csv do repositório) e exibe.
   function carregarPublicada(){
     PREVIEW = false;
     PV.showEmpty('Carregando planilha publicada…');
     fetch(ACUMULO_URL, { cache: 'no-store' }).then(function(res){
+      if(res.status === 404){ mostrarVazioRemovida(); return null; }   // planilha apagada no GitHub
       if(!res.ok) throw new Error('HTTP '+res.status);
       var when = res.headers.get('Last-Modified');
       return res.arrayBuffer().then(function(buf){ return { buf: buf, when: when ? new Date(when) : null }; });
     }).then(function(o){
+      if(!o) return;                               // 404 já tratado (painel vazio)
       var data = todayISO();                       // acumulo.csv não traz data no nome; rótulo é "Atual"
       var lojas = P.parseGerencial(new Uint8Array(o.buf), data);
       if(!lojas.length) throw new Error('planilha vazia');
@@ -1043,15 +1053,22 @@ if (typeof window !== 'undefined') {
     });
   }
 
-  // Atualizar para TODOS = trocar o acumulo.csv no repositório (o app só lê).
-  // Abre direto a página de upload do GitHub. Envie o novo arquivo com o nome
-  // exatamente "acumulo.csv" para substituir o atual; o site republica sozinho.
+  // Adicionar/remover para TODOS = mexer no acumulo.csv do repositório (o app só lê).
+  // Os botões abrem direto as páginas do GitHub; o site republica sozinho em ~1 min.
   var GITHUB_UPLOAD_URL = 'https://github.com/alcinadadosti-worspace/appCanalLoja/upload/main';
+  var GITHUB_DELETE_URL = 'https://github.com/alcinadadosti-worspace/appCanalLoja/delete/main/acumulo.csv';
   function trocarNoGitHub(){
-    if(confirm('Atualizar a planilha para TODOS = trocar o arquivo "acumulo.csv" no GitHub.\n\n'
-             + 'Dica: envie o arquivo novo com o nome exatamente "acumulo.csv" para substituir o atual. '
-             + 'O site republica sozinho em ~1 min.\n\nAbrir o GitHub agora?')){
+    if(confirm('Adicionar/atualizar a planilha para TODOS.\n\n'
+             + 'IMPORTANTE: renomeie o arquivo para "acumulo.csv" antes de subir — assim ele substitui o atual e todos veem a versão nova.\n\n'
+             + 'Vou abrir a página de upload do GitHub: arraste o acumulo.csv e clique em "Commit changes".\n\nAbrir agora?')){
       window.open(GITHUB_UPLOAD_URL, '_blank', 'noopener');
+    }
+  }
+  function removerNoGitHub(){
+    if(confirm('Remover a planilha para TODOS = apagar o "acumulo.csv" no GitHub.\n\n'
+             + 'Vou abrir a página de exclusão; lá é só clicar em "Commit changes". '
+             + 'O painel fica vazio para todos até você adicionar outra.\n\nAbrir agora?')){
+      window.open(GITHUB_DELETE_URL, '_blank', 'noopener');
     }
   }
 
@@ -1084,6 +1101,7 @@ if (typeof window !== 'undefined') {
   $('exportBtn').addEventListener('click', exportJSON);
   $('printBtn').addEventListener('click', function(){ window.print(); });
   $('updateBtn').addEventListener('click', trocarNoGitHub);
+  $('removeBtn').addEventListener('click', removerNoGitHub);
   var overlay=$('dropOverlay'); var dragDepth=0;
   window.addEventListener('dragenter', function(e){ e.preventDefault(); dragDepth++; overlay.classList.add('show'); });
   window.addEventListener('dragover', function(e){ e.preventDefault(); });

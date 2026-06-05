@@ -22,38 +22,39 @@ Para atualizar, você simplesmente troca a planilha.
 - **Alertas automáticos:** o painel destaca sozinho os maiores desvios
   (ex.: *"desconto 63% do GMV (rede 31%) · R$ 308 acima do padrão"*).
 
-O painel exibe **sempre a planilha publicada** (`acumulo.csv` do repositório),
-então **todos que abrirem a URL veem o mesmo resultado**. A própria planilha já
-vem **acumulada** (resultado do dia + dias anteriores somados), por isso o app
-mostra apenas a planilha atual — não guarda histórico.
+A planilha fica guardada num **cofre online (Supabase)**, então **todos que
+abrirem a URL veem o mesmo resultado**, atualizado direto no app. A planilha já
+vem **acumulada** (resultado do dia + dias anteriores), por isso o painel mostra
+apenas a planilha atual — não guarda histórico.
 
-## Fluxo de atualização (3x ao dia)
+## Atualização da planilha (direto no app)
 
-A fonte de verdade é o arquivo **`acumulo.csv`** na raiz do repositório. O painel
-tem dois botões que abrem direto o GitHub:
+Sem GitHub, sem renomear. Os botões trocam a planilha para **todos**:
 
-### Adicionar / atualizar planilha (para todos)
-1. Baixe a planilha do sistema (vem com qualquer nome).
-2. **Renomeie o arquivo para `acumulo.csv`** — esse é o passo-chave: com esse
-   nome, ele **substitui** o atual em vez de criar um arquivo novo.
-3. No painel, clique em **Adicionar planilha** → abre o upload do GitHub →
-   arraste o `acumulo.csv` → **Commit changes**.
-4. O Render republica sozinho em ~1 min; todos que abrirem a URL veem a nova.
+- **Adicionar planilha** → escolhe o CSV (qualquer nome) → publica; todos veem na hora.
+- **Remover planilha** → apaga; o painel fica **vazio para todos**.
+- **Pré-visualizar** → confere um CSV só no seu aparelho (não publica).
+- **⤓** exporta os dados em JSON e **Imprimir** gera um PDF.
 
-> Como adicionar **substitui** o arquivo, no dia a dia você nem precisa remover
-> para trocar — adicionar já troca. O rodapé mostra a data/hora da última
-> atualização (cabeçalho `Last-Modified`).
+## Configuração do cofre (Supabase) — uma vez
 
-### Remover planilha (para todos)
-Clique em **Remover planilha** → abre a página de exclusão do `acumulo.csv` no
-GitHub → **Commit changes**. O painel fica **vazio para todos** até você adicionar
-outra.
+1. Crie um projeto grátis em [supabase.com](https://supabase.com).
+2. No **SQL Editor**, rode (cria o bucket `planilha` público + permissões):
+   ```sql
+   insert into storage.buckets (id, name, public)
+   values ('planilha','planilha', true)
+   on conflict (id) do update set public = true;
 
-### Conferir antes de publicar (opcional)
-No próprio painel, **Pré-visualizar** (ou arrastar o arquivo) mostra uma
-**pré-visualização local** — aparece só no seu aparelho e **não publica**. O link
-*"Descartar e ver a publicada"* no rodapé volta à planilha do repositório.
-**⤓** exporta os dados em JSON e **Imprimir** gera um PDF.
+   create policy "ler"     on storage.objects for select using (bucket_id = 'planilha');
+   create policy "enviar"  on storage.objects for insert with check (bucket_id = 'planilha');
+   create policy "trocar"  on storage.objects for update using (bucket_id = 'planilha');
+   create policy "remover" on storage.objects for delete using (bucket_id = 'planilha');
+   ```
+3. Em **Project Settings → API**, copie a **Project URL** e a chave **anon public**
+   e preencha no topo do `index.html` (`SUPABASE_URL` e `SUPABASE_KEY`).
+
+> Enquanto o Supabase não estiver configurado, o painel lê o `acumulo.csv` do
+> repositório como fallback (some assim que o cofre é ligado).
 
 ## Deploy no Render (Static Site)
 

@@ -199,8 +199,8 @@
     <div class="controls">
       <span class="pill" id="datePill"><span class="dot"></span><span id="dateText">—</span></span>
       <select id="dateSel" title="Selecionar data" class="hidden"></select>
-      <button class="btn btn--accent" id="updateBtn" title="Subir a planilha no GitHub (renomeie para acumulo.csv) — fica visível para TODOS">Adicionar planilha</button>
-      <button class="btn btn--danger" id="removeBtn" title="Apagar a planilha no GitHub — some para TODOS">Remover planilha</button>
+      <button class="btn btn--accent" id="updateBtn" title="Escolher o CSV e publicar — fica visível para TODOS">Adicionar planilha</button>
+      <button class="btn btn--danger" id="removeBtn" title="Apagar a planilha — some para TODOS">Remover planilha</button>
       <button class="btn btn--ghost" id="uploadBtn" title="Pré-visualizar um CSV só neste aparelho (não publica)">Pré-visualizar</button>
       <button class="btn btn--ghost" id="printBtn" title="Imprimir / salvar PDF">Imprimir</button>
       <button class="btn btn--ghost" id="exportBtn" title="Baixar a planilha atual em JSON">⤓</button>
@@ -211,7 +211,7 @@
   <p class="note" id="footNote"></p>
 </div>
 
-<div class="drop" id="dropOverlay"><div class="drop__box">Solte o GerencialVendas-DD-MM-AAAA.csv<span>a data é lida do nome do arquivo</span></div></div>
+<div class="drop" id="dropOverlay"><div class="drop__box">Solte o CSV para publicar<span>fica visível para todos</span></div></div>
 
 <!-- parser (idêntico ao backend) -->
 <script>
@@ -973,7 +973,17 @@ if (typeof window !== 'undefined') {
   var STORE = {};            // sempre 1 planilha por vez (a "acumulada" atual)
   var CUR = null;
   var PREVIEW = false;       // true = exibindo planilha enviada neste aparelho (não publicada)
-  var ACUMULO_URL = 'acumulo.csv';
+  var ACUMULO_URL = 'acumulo.csv';   // fallback enquanto o Supabase não está configurado
+
+  // === Supabase (cofre online da planilha) — PREENCHER após criar o projeto ===
+  var SUPABASE_URL = '';     // ex.: https://xxxxxxxx.supabase.co
+  var SUPABASE_KEY = '';     // chave anon public (texto longo que começa com eyJ...)
+  var SUPABASE_BUCKET = 'planilha';
+  var SUPABASE_FILE = 'acumulo.csv';
+  function supaOn(){ return !!(SUPABASE_URL && SUPABASE_KEY); }
+  function supaReadURL(){ return SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + SUPABASE_FILE + '?t=' + Date.now(); }
+  function supaObjURL(){ return SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + SUPABASE_FILE; }
+  function supaHeaders(extra){ var h = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }; if(extra){ for(var k in extra) h[k] = extra[k]; } return h; }
 
   function fmtAtualizado(when){
     if(!when || isNaN(when.getTime())) return '';
@@ -1027,9 +1037,10 @@ if (typeof window !== 'undefined') {
   // Carrega a planilha PUBLICADA (acumulo.csv do repositório) e exibe.
   function carregarPublicada(){
     PREVIEW = false;
-    PV.showEmpty('Carregando planilha publicada…');
-    fetch(ACUMULO_URL, { cache: 'no-store' }).then(function(res){
-      if(res.status === 404){ mostrarVazioRemovida(); return null; }   // planilha apagada no GitHub
+    PV.showEmpty('Carregando planilha…');
+    var src = supaOn() ? supaReadURL() : ACUMULO_URL;
+    fetch(src, { cache: 'no-store' }).then(function(res){
+      if(res.status === 404 || (supaOn() && !res.ok)){ mostrarVazioRemovida(); return null; }   // sem planilha publicada
       if(!res.ok) throw new Error('HTTP '+res.status);
       var when = res.headers.get('Last-Modified');
       return res.arrayBuffer().then(function(buf){ return { buf: buf, when: when ? new Date(when) : null }; });
@@ -1053,23 +1064,38 @@ if (typeof window !== 'undefined') {
     });
   }
 
-  // Adicionar/remover para TODOS = mexer no acumulo.csv do repositório (o app só lê).
-  // Os botões abrem direto as páginas do GitHub; o site republica sozinho em ~1 min.
-  var GITHUB_UPLOAD_URL = 'https://github.com/alcinadadosti-worspace/appCanalLoja/upload/main';
-  var GITHUB_DELETE_URL = 'https://github.com/alcinadadosti-worspace/appCanalLoja/delete/main/acumulo.csv';
-  function trocarNoGitHub(){
-    if(confirm('Adicionar/atualizar a planilha para TODOS.\n\n'
-             + 'IMPORTANTE: renomeie o arquivo para "acumulo.csv" antes de subir — assim ele substitui o atual e todos veem a versão nova.\n\n'
-             + 'Vou abrir a página de upload do GitHub: arraste o acumulo.csv e clique em "Commit changes".\n\nAbrir agora?')){
-      window.open(GITHUB_UPLOAD_URL, '_blank', 'noopener');
-    }
+  // Adicionar para TODOS = enviar a planilha ao cofre online (Supabase). Substitui a anterior.
+  function publicarArquivo(file){
+    if(!supaOn()){ alert('O cofre online (Supabase) ainda não foi configurado.'); return; }
+    var fr = new FileReader();
+    fr.onload = function(){
+      var bytes = new Uint8Array(fr.result);
+      try{
+        var lojas = P.parseGerencial(bytes, todayISO());          // valida ANTES de publicar
+        if(!lojas.length) throw new Error('Nenhuma loja encontrada no arquivo.');
+      }catch(e){ alert('Arquivo inválido (não parece um GerencialVendas):\n'+e.message); return; }
+      PV.showEmpty('Publicando planilha para todos…');
+      fetch(supaObjURL(), {
+        method: 'POST',
+        headers: supaHeaders({ 'Content-Type': 'text/csv', 'x-upsert': 'true', 'cache-control': 'no-cache' }),
+        body: new Blob([bytes], { type: 'text/csv' })
+      }).then(function(res){
+        if(!res.ok) return res.text().then(function(t){ throw new Error('HTTP '+res.status+' — '+t); });
+        carregarPublicada();                                       // recarrega do cofre → todos veem
+      }).catch(function(e){ alert('Não foi possível publicar:\n'+e.message); carregarPublicada(); });
+    };
+    fr.onerror = function(){ alert('Falha ao ler o arquivo.'); };
+    fr.readAsArrayBuffer(file);
   }
-  function removerNoGitHub(){
-    if(confirm('Remover a planilha para TODOS = apagar o "acumulo.csv" no GitHub.\n\n'
-             + 'Vou abrir a página de exclusão; lá é só clicar em "Commit changes". '
-             + 'O painel fica vazio para todos até você adicionar outra.\n\nAbrir agora?')){
-      window.open(GITHUB_DELETE_URL, '_blank', 'noopener');
-    }
+  // Remover para TODOS = apagar a planilha do cofre online.
+  function removerPlanilha(){
+    if(!supaOn()){ alert('O cofre online (Supabase) ainda não foi configurado.'); return; }
+    if(!confirm('Remover a planilha para TODOS?\nO painel fica vazio até você adicionar outra.')) return;
+    PV.showEmpty('Removendo planilha…');
+    fetch(supaObjURL(), { method: 'DELETE', headers: supaHeaders() }).then(function(res){
+      if(!res.ok && res.status !== 404) return res.text().then(function(t){ throw new Error('HTTP '+res.status+' — '+t); });
+      mostrarVazioRemovida();
+    }).catch(function(e){ alert('Não foi possível remover:\n'+e.message); carregarPublicada(); });
   }
 
   // Pré-visualizar no app = PRÉ-VISUALIZAÇÃO local (não publica). Substitui o que está na tela.
@@ -1096,17 +1122,29 @@ if (typeof window !== 'undefined') {
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },0);
   }
 
-  $('uploadBtn').addEventListener('click', function(){ $('fileIn').click(); });
-  $('fileIn').addEventListener('change', function(ev){ readFiles(ev.target.files); ev.target.value=''; });
+  var pendingMode = 'preview';
+  $('updateBtn').addEventListener('click', function(){ pendingMode = 'publish'; $('fileIn').click(); });   // Adicionar (publica)
+  $('uploadBtn').addEventListener('click', function(){ pendingMode = 'preview'; $('fileIn').click(); });   // Pré-visualizar (local)
+  $('fileIn').addEventListener('change', function(ev){
+    var f = ev.target.files && ev.target.files[0]; ev.target.value = '';
+    if(!f) return;
+    if(pendingMode === 'publish') publicarArquivo(f); else readFiles([f]);
+  });
+  $('removeBtn').addEventListener('click', removerPlanilha);
   $('exportBtn').addEventListener('click', exportJSON);
   $('printBtn').addEventListener('click', function(){ window.print(); });
-  $('updateBtn').addEventListener('click', trocarNoGitHub);
-  $('removeBtn').addEventListener('click', removerNoGitHub);
   var overlay=$('dropOverlay'); var dragDepth=0;
   window.addEventListener('dragenter', function(e){ e.preventDefault(); dragDepth++; overlay.classList.add('show'); });
   window.addEventListener('dragover', function(e){ e.preventDefault(); });
   window.addEventListener('dragleave', function(e){ e.preventDefault(); if(--dragDepth<=0){ dragDepth=0; overlay.classList.remove('show'); } });
-  window.addEventListener('drop', function(e){ e.preventDefault(); dragDepth=0; overlay.classList.remove('show'); if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) readFiles(e.dataTransfer.files); });
+  window.addEventListener('drop', function(e){
+    e.preventDefault(); dragDepth=0; overlay.classList.remove('show');
+    var files = e.dataTransfer && e.dataTransfer.files;
+    if(files && files.length){
+      var f = Array.prototype.slice.call(files).filter(function(x){ return /\.csv$/i.test(x.name); })[0] || files[0];
+      publicarArquivo(f);                                          // soltar = publicar para todos
+    }
+  });
 
   /* exemplo embarcado (CSV real 02/06/2026, base64) — usado só se acumulo.csv não carregar */
   var SAMPLE_B64 = "77u/TGlzdGFyIFBvciBMb2phcztHTVYtR01WO0dNVi1Cb2xldG8gbcOpZGlvO0dNVi1RdGQgZGUgYm9sZXRvcztHTVYtSXRlbnMgcG9yIGJvbGV0bztNZXRhIHJlY2VpdGEtTWV0YSByZWNlaXRhO01ldGEgcmVjZWl0YS1BdGluZ2ltZW50bztNZXRhIHJlY2VpdGEtQ3Jlc2NpbWVudG8gYW5vIGFudGVyaW9yO01ldGEgY29tcGxlbWVudGFyLU1ldGEgYm9sZXRvIG3DqWRpbztNZXRhIGNvbXBsZW1lbnRhci1BdGluZ2ltZW50byBtZXRhIGJvbGV0byBtw6lkaW87TWV0YSBjb21wbGVtZW50YXItTWV0YSBpdGVucyBwb3IgYm9sZXRvO01ldGEgY29tcGxlbWVudGFyLUF0aW5naW1lbnRvIGl0ZW5zIHBvciBib2xldG87VmFsb3JlcyBkZSB2ZW5kYXMtUmVjZWl0YSBsw61xdWlkYTtWYWxvcmVzIGRlIHZlbmRhcy1SZWNlaXRhIGzDrXF1aWRhICgtKSB0cm9jYXM7VmFsb3JlcyBkZSB2ZW5kYXMtQjE7RmlkZWxpZGFkZS1RdGQgZGUgYm9sZXRvcztGaWRlbGlkYWRlLVBlbmV0cmHDp8OjbyBib2xldG9zO0Rlc2NvbnRvcy1Ub3RhbCBkZSBkZXNjb250b3M7VHJvY2FzLVRyb2NhcztUcm9jYXMtUXRkIGRlIHRyb2NhcztDYXJ0w6NvIHByZXNlbnRlLVJlY2FyZ2E7UXVhbnRpdGF0aXZvLUIxCjI0MzAzIC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPTUVUSUNPUyBMVERBOzIuMDc0LDE3OzI1OSwyNzs4LDAwOzIsMjU7Ozs7Ozs7OzIuMDc0LDMwOzIuMDc0LDMwOzAsMDA7OCwwMDsxMDAsMDA7MTg1LDEwOzAsMDA7MCwwMDswLDAwOzAsMDAKMjQ2MTcgLSBBQ1FVQSBESVNUUklCVUlET1JBIERFIFBFUkZVTUVTIEUgQ09TTUVUSUNPUyBMVERBOzU3Myw3MjsxMTQsNzQ7NSwwMDsxLDYwOzs7Ozs7Ozs3NjMsNjI7NTczLDcyOzMxMCw4MDs1LDAwOzEwMCwwMDsxMzUsNTg7MTg5LDkwOzEsMDA7MCwwMDsyLDAwCjI0NjY4IC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPU01FVElDT1MgTFREQTs0LjgxOSwzMTszMDEsMjE7MTYsMDA7MywwNjs7Ozs7Ozs7NS4xMDIsODg7NS4xMDIsODg7OTUxLDA3OzE4LDAwOzgxLDgyOzczMSw4NzswLDAwOzAsMDA7MCwwMDsxMSwwMAoyNDY2OSAtIEFDUVVBIERJU1RSSUJVSURPUkEgREUgUEVSRlVNRVMgRSBDT1NNRVRJQ09TIExUREE7NS42MjUsNDQ7MjQ0LDU4OzIzLDAwOzIsNzQ7Ozs7Ozs7OzUuNjI1LDQ2OzUuNjI1LDQ2OzYxNyw0MDsyMywwMDsxMDAsMDA7MS40NjgsMjQ7MCwwMDswLDAwOzAsMDA7NiwwMAoyNDY3MCAtIEFDUVVBIERJU1RSSUJVSURPUkEgREUgUEVSRlVNRVMgRSBDT1NNRVRJQ09TIExUREE7Mi44ODUsMDA7MjQwLDQyOzEyLDAwOzIsMDg7Ozs7Ozs7OzMuMTM1LDYwOzMuMTM1LDYwOzEuMjUxLDI3OzExLDAwOzg0LDYyOzQ5NCw3OTswLDAwOzAsMDA7MCwwMDs2LDAwCjI0NjcxIC0gQUNRVUEgRElTVFJJQlVJRE9SQSBERSBQRVJGVU1FUyBFIENPU01FVElDT1MgTFREQTsyLjgwNywzNDsyMTUsOTU7MTMsMDA7Miw0Njs7Ozs7Ozs7Mi44MDcsMzg7Mi44MDcsMzg7MTg0LDUyOzEzLDAwOzEwMCwwMDs1NjgsNjI7MCwwMDswLDAwOzQwMCwwMDsyLDAw";

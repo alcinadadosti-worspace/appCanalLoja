@@ -107,7 +107,7 @@
   .card__chev{flex:none;color:var(--muted);font-size:1rem;width:18px;text-align:center}
 
   .card__detail{max-height:0;overflow:hidden;transition:max-height .34s cubic-bezier(.2,.7,.2,1)}
-  .card.is-open .card__detail{max-height:640px}
+  .card.is-open .card__detail{max-height:1200px}
   .card__detail-in{padding:2px 15px 16px;border-top:1px solid var(--line)}
   .kv-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-top:12px}
   .kv{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
@@ -165,7 +165,7 @@
   .drop__box{border:2px dashed var(--brass-soft);border-radius:20px;padding:40px 44px;text-align:center;font-family:"Fraunces",serif;font-size:1.25rem}
   .drop__box span{display:block;font-family:"Public Sans";font-size:.82rem;color:var(--sage);margin-top:8px}
 
-  @media (min-width:560px){ .kv-grid{grid-template-columns:1fr 1fr 1fr} .card.is-open .card__detail{max-height:640px} }
+  @media (min-width:560px){ .kv-grid{grid-template-columns:1fr 1fr 1fr} .card.is-open .card__detail{max-height:1200px} }
   .donut-wrap2{display:flex;justify-content:center;padding:8px 0 2px}
   .donut2{width:172px;height:172px;display:block}
   .d2-big{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:30px;fill:var(--green-900)}
@@ -637,6 +637,13 @@ if (typeof window !== 'undefined') {
     }).join('');
     return '<div class="card__spark-l">Scorecard · loja vs. canal</div><div class="sc-grid">' + rows + '</div>';
   }
+  // grade com TODOS os indicadores da loja (valores brutos).
+  function detailGridHTML(r) {
+    var cells = DETAIL.map(function (d) {
+      return '<div class="kv"><span class="kv__k">' + esc(d[0]) + '</span><span class="kv__v">' + fmt(d[1])(r[d[2]]) + '</span></div>';
+    }).join('');
+    return '<div class="card__spark-l">Todos os indicadores</div><div class="kv-grid">' + cells + '</div>';
+  }
   // motor de alertas: junta os KPIs "vermelhos" de todas as lojas e ordena por impacto (R$).
   function buildAlerts(rows, total) {
     var out = [];
@@ -866,6 +873,7 @@ if (typeof window !== 'undefined') {
       + '</div>'
       + '<div class="card__detail"><div class="card__detail-in">'
       + scorecardHTML(r, ctx.total)
+      + detailGridHTML(r)
       + '<div class="card__spark-l">' + esc(dLabel) + '</div>'
       + donutRing(frac, color, dBig, dSmall)
       + '</div></div></article>';

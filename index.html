@@ -799,14 +799,21 @@ if (typeof window !== 'undefined') {
   }
 
   // Encolhe o número grande da hero só o necessário p/ nunca cortar (valores longos do ciclo).
+  // Roda agora e DE NOVO quando a fonte web carregar (senão mede com a fonte de fallback).
   function fitHeroBig(host) {
     if (!host || !host.querySelector || typeof getComputedStyle === 'undefined') return;
-    var big = host.querySelector('.hero__big');
-    if (!big) return;
-    big.style.fontSize = '';
-    var guard = 0;
-    while (big.scrollWidth > big.clientWidth + 1 && guard++ < 16) {
-      big.style.fontSize = (parseFloat(getComputedStyle(big).fontSize) * 0.93) + 'px';
+    function doFit() {
+      var big = host.querySelector('.hero__big');
+      if (!big) return;
+      big.style.fontSize = '';
+      var guard = 0;
+      while (big.scrollWidth > big.clientWidth + 1 && guard++ < 24) {
+        big.style.fontSize = (parseFloat(getComputedStyle(big).fontSize) * 0.94) + 'px';
+      }
+    }
+    doFit();
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready && document.fonts.ready.then) {
+      document.fonts.ready.then(doFit);
     }
   }
 

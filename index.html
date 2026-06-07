@@ -798,6 +798,18 @@ if (typeof window !== 'undefined') {
       + '</div>' + spark + '</section>';
   }
 
+  // Encolhe o número grande da hero só o necessário p/ nunca cortar (valores longos do ciclo).
+  function fitHeroBig(host) {
+    if (!host || !host.querySelector || typeof getComputedStyle === 'undefined') return;
+    var big = host.querySelector('.hero__big');
+    if (!big) return;
+    big.style.fontSize = '';
+    var guard = 0;
+    while (big.scrollWidth > big.clientWidth + 1 && guard++ < 16) {
+      big.style.fontSize = (parseFloat(getComputedStyle(big).fontSize) * 0.93) + 'px';
+    }
+  }
+
   function pillsHTML(m) {
     return '<div class="pills" role="tablist">' + SWITCH.map(function (x) {
       return '<button type="button" class="pill-m' + (x.key === m.key ? ' is-on' : '') + '" data-metric="' + x.key + '">' + esc(x.label) + '</button>';
@@ -902,6 +914,7 @@ if (typeof window !== 'undefined') {
       + alertsHTML(rows, total)
       + pillsHTML(m)
       + '<div class="cards">' + cards + '</div>';
+    fitHeroBig(host);
     ensureBound();
   }
 

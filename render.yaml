@@ -14,3 +14,8 @@ services:
       - path: /*
         name: X-Content-Type-Options
         value: nosniff
+      # Sempre revalidar (via ETag) — assim um novo deploy aparece na hora,
+      # sem o usuário precisar limpar cache. Revalidação é barata (304).
+      - path: /*
+        name: Cache-Control
+        value: no-cache

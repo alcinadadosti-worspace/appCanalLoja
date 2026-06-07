@@ -134,6 +134,7 @@
   .alerts{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:13px 15px;margin-top:11px}
   .alerts--ok{color:var(--green-700);font-size:.86rem;font-weight:600;display:flex;gap:8px;align-items:center}
   .alerts__h{font-family:"Public Sans";font-weight:700;font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  .alerts__n{color:var(--brass);font-weight:700}
   .al-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
   .al{font-size:.85rem;color:var(--ink);border-left:3px solid var(--down);padding:2px 0 2px 11px;line-height:1.35}
   .al--more{border-left-color:var(--line-strong);color:var(--muted);font-size:.8rem}
@@ -664,12 +665,11 @@ if (typeof window !== 'undefined') {
     if (!list.length) {
       return '<section class="alerts alerts--ok"><span>✓</span> Todas as lojas em linha com o canal — sem pontos de atenção.</section>';
     }
-    var top = list.slice(0, 4);
-    var items = top.map(function (a) {
+    var items = list.map(function (a) {                 // mostra TODOS, ordenados por impacto
       return '<li class="al"><span class="al__store">' + esc(a.store) + ':</span> ' + a.msg + '</li>';
     }).join('');
-    var more = list.length > top.length ? '<li class="al al--more">+' + (list.length - top.length) + ' outro(s) ponto(s) de atenção</li>' : '';
-    return '<section class="alerts"><div class="alerts__h">Pontos de atenção · canal</div><ul class="al-list">' + items + more + '</ul></section>';
+    var cab = 'Pontos de atenção · canal <span class="alerts__n">(' + list.length + ')</span>';
+    return '<section class="alerts"><div class="alerts__h">' + cab + '</div><ul class="al-list">' + items + '</ul></section>';
   }
   /* ---------- mini-gráfico (sparkline) ---------- */
   function sparkline(values, color, markIndex) {

@@ -196,7 +196,7 @@
   <header class="top">
     <div class="brand">
       <span class="seal"><img src="logo.png" alt="ACQUA" /></span>
-      <div><h1>Painel Gerencial</h1><div class="sub">ACQUA · O Boticário</div></div>
+      <div><h1>Painel Gerencial</h1><div class="sub">ACQUA · Canal Loja</div></div>
     </div>
     <div class="controls">
       <span class="pill" id="datePill"><span class="dot"></span><span id="dateText">—</span></span>
@@ -482,7 +482,7 @@ function computeNetworkTotal(rows) {
 
   return {
     pdv: 'TOTAL',
-    nome: 'TOTAL DA REDE',
+    nome: 'TOTAL CANAL LOJA',
     razaoSocial: '',
     gmv,
     boletoMedio: qtdBoletos > 0 ? gmv / qtdBoletos : null,
@@ -632,9 +632,9 @@ if (typeof window !== 'undefined') {
       return '<div class="sc"><span class="sc__dot sem--' + s + '"></span>'
         + '<span class="sc__k">' + esc(b.label) + '</span>'
         + '<span class="sc__v">' + f(v) + '</span>'
-        + '<span class="sc__ref">rede ' + f(ref) + '</span></div>';
+        + '<span class="sc__ref">canal ' + f(ref) + '</span></div>';
     }).join('');
-    return '<div class="card__spark-l">Scorecard · loja vs. rede</div><div class="sc-grid">' + rows + '</div>';
+    return '<div class="card__spark-l">Scorecard · loja vs. canal</div><div class="sc-grid">' + rows + '</div>';
   }
   // motor de alertas: junta os KPIs "vermelhos" de todas as lojas e ordena por impacto (R$).
   function buildAlerts(rows, total) {
@@ -646,13 +646,13 @@ if (typeof window !== 'undefined') {
         if (!isNum(v) || !isNum(ref) || ref === 0) return;
         if (sem(v, ref, b.dir, b.abs) !== 'r') return;
         var msg, sev;
-        if (b.key === 'descontoPct')      { var ex = (v - ref) / 100 * gmv; sev = ex;                msg = 'desconto ' + fPCT(v) + ' do GMV (rede ' + fPCT(ref) + ') · ' + fBRL(ex) + ' acima do padrão'; }
-        else if (b.key === 'trocaPct')    { sev = (v - ref) / 100 * num(r.receitaLiquida);          msg = 'trocas ' + fPCT(v) + ' da receita (rede ' + fPCT(ref) + ')'; }
-        else if (b.key === 'boletoMedio') { sev = (ref - v) * num(r.qtdBoletos);                     msg = 'ticket ' + fBRL(v) + ' (rede ' + fBRL(ref) + ') · ' + fPCT((ref - v) / ref * 100) + ' abaixo'; }
-        else if (b.key === 'itensBoleto') { sev = (ref - v) / ref * gmv;                             msg = fNUM(v) + ' itens/boleto (rede ' + fNUM(ref) + ') · menor giro por venda'; }
-        else if (b.key === 'b1Pct')       { sev = (ref - v) / 100 * gmv;                             msg = 'B1 ' + fPCT(v) + ' do GMV (rede ' + fPCT(ref) + ')'; }
+        if (b.key === 'descontoPct')      { var ex = (v - ref) / 100 * gmv; sev = ex;                msg = 'desconto ' + fPCT(v) + ' do GMV (canal ' + fPCT(ref) + ') · ' + fBRL(ex) + ' acima do padrão'; }
+        else if (b.key === 'trocaPct')    { sev = (v - ref) / 100 * num(r.receitaLiquida);          msg = 'trocas ' + fPCT(v) + ' da receita (canal ' + fPCT(ref) + ')'; }
+        else if (b.key === 'boletoMedio') { sev = (ref - v) * num(r.qtdBoletos);                     msg = 'ticket ' + fBRL(v) + ' (canal ' + fBRL(ref) + ') · ' + fPCT((ref - v) / ref * 100) + ' abaixo'; }
+        else if (b.key === 'itensBoleto') { sev = (ref - v) / ref * gmv;                             msg = fNUM(v) + ' itens/boleto (canal ' + fNUM(ref) + ') · menor giro por venda'; }
+        else if (b.key === 'b1Pct')       { sev = (ref - v) / 100 * gmv;                             msg = 'B1 ' + fPCT(v) + ' do GMV (canal ' + fPCT(ref) + ')'; }
         else if (b.key === 'fidelidadePenetracao') { sev = (ref - v) / 100 * gmv;                    msg = 'fidelidade ' + fPCT(v) + ' (abaixo de 85%)'; }
-        else { sev = 0; msg = b.label + ' abaixo da rede'; }
+        else { sev = 0; msg = b.label + ' abaixo do canal'; }
         out.push({ store: nome, msg: msg, severity: sev || 0 });
       });
     });
@@ -662,14 +662,14 @@ if (typeof window !== 'undefined') {
   function alertsHTML(rows, total) {
     var list = buildAlerts(rows, total);
     if (!list.length) {
-      return '<section class="alerts alerts--ok"><span>✓</span> Todas as lojas em linha com a rede — sem pontos de atenção.</section>';
+      return '<section class="alerts alerts--ok"><span>✓</span> Todas as lojas em linha com o canal — sem pontos de atenção.</section>';
     }
     var top = list.slice(0, 4);
     var items = top.map(function (a) {
       return '<li class="al"><span class="al__store">' + esc(a.store) + ':</span> ' + a.msg + '</li>';
     }).join('');
     var more = list.length > top.length ? '<li class="al al--more">+' + (list.length - top.length) + ' outro(s) ponto(s) de atenção</li>' : '';
-    return '<section class="alerts"><div class="alerts__h">Pontos de atenção · rede</div><ul class="al-list">' + items + more + '</ul></section>';
+    return '<section class="alerts"><div class="alerts__h">Pontos de atenção · canal</div><ul class="al-list">' + items + more + '</ul></section>';
   }
   /* ---------- mini-gráfico (sparkline) ---------- */
   function sparkline(values, color, markIndex) {
@@ -787,7 +787,7 @@ if (typeof window !== 'undefined') {
       if (vals.filter(function (x) { return x != null; }).length >= 2) spark = '<div class="hero__spark">' + sparkline(vals, '#e4d3ac', idx) + '</div>';
     }
     return '<section class="hero">'
-      + '<div class="hero__row"><span class="hero__label">' + esc(m.label) + ' da rede</span>'
+      + '<div class="hero__row"><span class="hero__label">' + esc(m.label) + ' do canal</span>'
       + '<span class="hero__meta">' + metaTxt + '</span></div>'
       + '<div class="hero__big">' + fmt(m.kind)(v) + '</div>'
       + chip
@@ -826,19 +826,19 @@ if (typeof window !== 'undefined') {
     var rcls = rank === 0 ? ' r1' : rank === 1 ? ' r2' : rank === 2 ? ' r3' : '';
     var open = !!state.expanded[pdv];
     var health = storeHealth(r, ctx.total);
-    var meta = (sharePct != null ? sharePct + '% da rede · ' : '')
+    var meta = (sharePct != null ? sharePct + '% do canal · ' : '')
       + fINT(r.qtdBoletos) + ' boletos · ticket ' + fBRL(r.boletoMedio);
     // rosca do indicador selecionado (participação da loja na rede)
     var dBig, dSmall, dLabel;
     if (isPen) { dBig = fPCT(v); dSmall = 'penetração'; dLabel = 'Fidelidade atingida'; }
-    else if (m.add) { dBig = (ctx.sum > 0 ? Math.round(v / ctx.sum * 100) : 0) + '%'; dSmall = 'da rede'; dLabel = 'Participação · ' + m.label; }
+    else if (m.add) { dBig = (ctx.sum > 0 ? Math.round(v / ctx.sum * 100) : 0) + '%'; dSmall = 'do canal'; dLabel = 'Participação · ' + m.label; }
     else { dBig = (ctx.max > 0 ? Math.round(v / ctx.max * 100) : 0) + '%'; dSmall = 'vs. líder'; dLabel = m.label + ' · comparação'; }
     return '<article class="card' + (open ? ' is-open' : '') + '" style="--c:' + color + '">'
       + '<div class="card__main" data-card="' + esc(pdv) + '">'
       + '<div class="card__rank' + rcls + '">' + (rank + 1) + '</div>'
       + '<div class="card__body">'
       + '<div class="card__top"><span class="card__name">' + esc(name) + '</span>'
-      + '<span class="card__flags"><span class="hdot sem--' + health + '" title="saúde vs. rede"></span>' + chip + '</span></div>'
+      + '<span class="card__flags"><span class="hdot sem--' + health + '" title="saúde vs. canal"></span>' + chip + '</span></div>'
       + '<div class="card__val">' + fmt(m.kind)(v) + '</div>'
       + '<div class="card__bar"><i style="width:' + (frac * 100).toFixed(1) + '%"></i></div>'
       + '<div class="card__meta">' + meta + '</div>'

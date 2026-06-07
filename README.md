@@ -1,12 +1,12 @@
-# Painel Gerencial ACQUA · O Boticário (offline)
+# Painel Gerencial · Canal Loja ACQUA · O Boticário
 
 Painel gerencial **mobile-first** de arquivo único (`index.html`) que lê o
-relatório `acumulo.csv` (formato `GerencialVendas` da rede ACQUA / O Boticário)
+relatório `acumulo.csv` (formato `GerencialVendas` do Canal Loja ACQUA / O Boticário)
 e mostra:
 
-- número grande da rede (GMV, Receita, Ticket, Boletos, Fidelidade…);
+- número grande do canal (GMV, Receita, Ticket, Boletos, Fidelidade…);
 - **pontos de atenção:** alertas automáticos por loja, ordenados por impacto em R$;
-- cartões por loja com **semáforo de saúde** e **scorecard vs. rede** (toque para abrir);
+- cartões por loja com **semáforo de saúde** e **scorecard vs. canal** (toque para abrir);
 - seletor de métrica que reordena/destaca o indicador.
 
 A planilha enviada já é o **acumulado do ciclo** (do início do ciclo até o dia
@@ -16,11 +16,11 @@ Para atualizar, você simplesmente troca a planilha.
 ## Análises (derivadas da planilha vigente)
 
 - **KPIs de eficiência:** desconto % do GMV, B1 % do GMV, ticket, itens/boleto e
-  trocas % da receita — cada um comparado com a **referência da rede**.
-- **Semáforo 🟢🟡🔴:** cada KPI da loja é classificado vs. a rede; o cartão mostra
+  trocas % da receita — cada um comparado com a **referência do canal**.
+- **Semáforo 🟢🟡🔴:** cada KPI da loja é classificado vs. o canal; o cartão mostra
   uma bolinha de saúde geral e, ao abrir, o scorecard completo.
 - **Alertas automáticos:** o painel destaca sozinho os maiores desvios
-  (ex.: *"desconto 63% do GMV (rede 31%) · R$ 308 acima do padrão"*).
+  (ex.: *"desconto 63% do GMV (canal 31%) · R$ 308 acima do padrão"*).
 
 A planilha fica guardada num **cofre online (Supabase)**, então **todos que
 abrirem a URL veem o mesmo resultado**, atualizado direto no app. A planilha já

@@ -8,7 +8,9 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Painel ACQUA" />
-<title>Painel Gerencial · ACQUA (offline)</title>
+<title>Painel Gerencial · ACQUA</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -38,8 +40,8 @@
 
   .top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px}
   .brand{display:flex;align-items:center;gap:11px;min-width:0}
-  .seal{width:40px;height:40px;border-radius:50%;background:var(--green-900);display:grid;place-items:center;box-shadow:var(--shadow);flex:none}
-  .seal svg{width:21px;height:21px}
+  .seal{width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:var(--shadow);flex:none;overflow:hidden;border:1px solid var(--line)}
+  .seal img{width:100%;height:100%;object-fit:contain;transform:scale(1.3)}
   .brand h1{font-family:"Fraunces",Georgia,serif;font-weight:600;font-size:1.22rem;margin:0;line-height:1.05}
   .brand .sub{font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:2px}
   .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -193,8 +195,8 @@
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <span class="seal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21c0-6 0-9 5-13-1 6-2 9-5 13Z" fill="#e4d3ac"/><path d="M12 21c0-5-1-8-6-11 2 5 3 8 6 11Z" fill="#8fae9a"/></svg></span>
-      <div><h1>Painel Gerencial</h1><div class="sub">ACQUA · O Boticário · offline</div></div>
+      <span class="seal"><img src="logo.png" alt="ACQUA" /></span>
+      <div><h1>Painel Gerencial</h1><div class="sub">ACQUA · O Boticário</div></div>
     </div>
     <div class="controls">
       <span class="pill" id="datePill"><span class="dot"></span><span id="dateText">—</span></span>

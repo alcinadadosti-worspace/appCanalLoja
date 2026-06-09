@@ -57,6 +57,12 @@
   .file-in{display:none}
   .hidden{display:none!important}
 
+  /* ABAS (Acumulado / Hoje) */
+  .tabs{display:flex;gap:6px;margin:0 0 16px;background:var(--paper-2);border:1px solid var(--line-strong);border-radius:14px;padding:4px}
+  .tab{flex:1;font-family:inherit;font-size:.86rem;font-weight:600;color:var(--muted);background:transparent;border:0;border-radius:10px;padding:10px 12px;cursor:pointer;transition:.15s;min-height:42px}
+  .tab:hover{color:var(--green-900)}
+  .tab.is-active{background:var(--green-900);color:#f3efe2;box-shadow:var(--shadow)}
+
   /* HERO */
   .hero{background:linear-gradient(155deg,var(--green-800),var(--green-900) 72%);color:#eef2e8;border-radius:24px;padding:22px 22px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
   .hero::after{content:"";position:absolute;right:-50px;top:-60px;width:230px;height:230px;border-radius:50%;background:radial-gradient(circle at 30% 30%,rgba(181,137,76,.34),transparent 60%);pointer-events:none}
@@ -178,6 +184,7 @@
     body::before{display:none !important}
     .controls,.pills,.seg,.card__chev,.note{display:none !important}
     .wrap{max-width:none;padding:0}
+    .tabs{display:none!important}
     .hero{box-shadow:none;background:#fff !important;border:1px solid #cfc9b8}
     .hero::after{display:none}
     .hero__label,.hero__big{color:#13332a !important}
@@ -211,6 +218,10 @@
       <input type="file" accept=".csv" id="fileIn" class="file-in" multiple />
     </div>
   </header>
+  <nav class="tabs" id="tabs">
+    <button class="tab is-active" id="tabAcumulado" data-view="acumulado">Acumulado</button>
+    <button class="tab" id="tabHoje" data-view="hoje">Como estamos hoje</button>
+  </nav>
   <main id="app"></main>
   <p class="note" id="footNote"></p>
 </div>
@@ -1001,19 +1012,27 @@ if (typeof window !== 'undefined') {
     return d.getFullYear()+'-'+mm+'-'+dd;
   }
 
-  var STORE = {};            // sempre 1 planilha por vez (a "acumulada" atual)
+  // Dados por aba. Cada aba guarda a SUA planilha (1 por vez), de forma independente.
+  //   acumulado -> acumulo.csv   ·   hoje -> dia.csv
+  var DS = {
+    acumulado: { store:{}, cur:null, when:null, preview:false, empty:'', sample:false },
+    hoje:      { store:{}, cur:null, when:null, preview:false, empty:'', sample:false }
+  };
+  var VIEW = 'acumulado';    // aba ativa
+  // Ponteiros "ativos" — render()/buildSeries()/exportJSON() seguem usando estes.
+  var STORE = DS.acumulado.store;
   var CUR = null;
   var PREVIEW = false;       // true = exibindo planilha enviada neste aparelho (não publicada)
-  var ACUMULO_URL = 'acumulo.csv';   // fallback enquanto o Supabase não está configurado
 
   // === Supabase (cofre online da planilha) ===
   var SUPABASE_URL = 'https://pigwfnzowefwbvjpxxif.supabase.co';
   var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpZ3dmbnpvd2Vmd2J2anB4eGlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2ODMxMzYsImV4cCI6MjA5NjI1OTEzNn0.NxXZwwRw6DIH5NyTEb2FWrx6JDe2JcBY2UhY-ERDPNQ';
   var SUPABASE_BUCKET = 'planilha';
-  var SUPABASE_FILE = 'acumulo.csv';
+  // Uma planilha por aba: 'acumulo.csv' (Acumulado) e 'dia.csv' (Como estamos hoje).
+  var FILES = { acumulado: 'acumulo.csv', hoje: 'dia.csv' };
   function supaOn(){ return !!(SUPABASE_URL && SUPABASE_KEY); }
-  function supaReadURL(){ return SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + SUPABASE_FILE + '?t=' + Date.now(); }
-  function supaObjURL(){ return SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + SUPABASE_FILE; }
+  function supaReadURL(file){ return SUPABASE_URL + '/storage/v1/object/public/' + SUPABASE_BUCKET + '/' + file + '?t=' + Date.now(); }
+  function supaObjURL(file){ return SUPABASE_URL + '/storage/v1/object/' + SUPABASE_BUCKET + '/' + file; }
   function supaHeaders(extra){ var h = { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }; if(extra){ for(var k in extra) h[k] = extra[k]; } return h; }
 
   // === Admin (trava da interface por senha) ===
@@ -1026,6 +1045,7 @@ if (typeof window !== 'undefined') {
     var on = isAdmin();
     ['updateBtn','removeBtn','uploadBtn'].forEach(function(id){ var b=$(id); if(b) b.classList.toggle('hidden', !on); });
     var ab=$('adminBtn'); if(ab){ ab.textContent = on ? 'Sair' : 'Admin'; ab.title = on ? 'Sair do modo administrador' : 'Entrar como administrador (adicionar/remover planilha)'; }
+    if(on) syncAdminLabels();
   }
   function adminToggle(){
     if(isAdmin()){ setAdmin(false); return; }
@@ -1065,58 +1085,104 @@ if (typeof window !== 'undefined') {
     var foot;
     if(PREVIEW){
       foot = '<b>Pré-visualização local</b> · '+nl+' loja(s) · esta planilha <b>não está publicada</b>. '
-           + 'Para publicar para todos, suba o arquivo como <code>acumulo.csv</code> no GitHub. '
+           + 'Para publicar para todos, use <b>Adicionar planilha</b> nesta aba (vira <code>'+FILES[VIEW]+'</code>). '
            + '<a id="descartarPrev">Descartar e ver a publicada</a>';
+    } else if(DS[VIEW].sample){
+      foot = '<i>Exemplo embarcado</i> — não foi possível carregar <code>'+FILES[VIEW]+'</code> (abra pelo site publicado).';
     } else {
       foot = nl+' loja(s) · planilha publicada'
            + (opts.atualizado ? ' · atualizada em '+opts.atualizado : '');
     }
     var fn=$('footNote');
     if(fn){ fn.innerHTML = foot; var dp=$('descartarPrev'); if(dp) dp.addEventListener('click', carregarPublicada); }
-    var dt=$('dateText'); if(dt) dt.textContent = PREVIEW ? 'Pré-visualização' : 'Atual';
+    var dt=$('dateText'); if(dt) dt.textContent = PREVIEW ? 'Pré-visualização' : (VIEW==='hoje' ? 'Hoje' : 'Atual');
   }
 
-  // Planilha apagada no GitHub → painel vazio para todos.
-  function mostrarVazioRemovida(){
-    STORE = {}; CUR = null; PREVIEW = false;
-    var dt = $('dateText'); if(dt) dt.textContent = '—';
-    PV.showEmpty('Nenhuma planilha publicada. Use "Adicionar planilha" para subir o acumulo.csv no GitHub.');
-  }
-
-  // Carrega a planilha PUBLICADA (acumulo.csv do repositório) e exibe.
-  function carregarPublicada(){
-    PREVIEW = false;
-    PV.showEmpty('Carregando planilha…');
-    var src = supaOn() ? supaReadURL() : ACUMULO_URL;
-    fetch(src, { cache: 'no-store' }).then(function(res){
-      if(res.status === 404 || (supaOn() && !res.ok)){ mostrarVazioRemovida(); return null; }   // sem planilha publicada
+  // Carrega a planilha de UMA aba (do cofre/repositório) para DS[view].
+  // Resolve sempre; em 404 marca a aba como vazia. Rejeita só em erro de rede/parse.
+  function loadView(view){
+    var d = DS[view];
+    var src = supaOn() ? supaReadURL(FILES[view]) : FILES[view];
+    return fetch(src, { cache: 'no-store' }).then(function(res){
+      if(res.status === 404 || (supaOn() && !res.ok)){ markEmpty(view); return; }   // sem planilha nesta aba
       if(!res.ok) throw new Error('HTTP '+res.status);
       var when = res.headers.get('Last-Modified');
-      return res.arrayBuffer().then(function(buf){ return { buf: buf, when: when ? new Date(when) : null }; });
-    }).then(function(o){
-      if(!o) return;                               // 404 já tratado (painel vazio)
-      var data = todayISO();                       // acumulo.csv não traz data no nome; rótulo é "Atual"
-      var lojas = P.parseGerencial(new Uint8Array(o.buf), data);
-      if(!lojas.length) throw new Error('planilha vazia');
-      var total = P.computeNetworkTotal(lojas);
-      STORE = {}; STORE[data] = { data: data, lojas: lojas, total: total };
-      render(data, { atualizado: fmtAtualizado(o.when) });
-    }).catch(function(){
-      // acumulo.csv inacessível (ex.: aberto via file://) → exibe o exemplo embarcado.
-      try{
-        var data = '2026-06-02';
-        var lojas = P.parseGerencial(b64ToBytes(SAMPLE_B64), data);
-        STORE = {}; STORE[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
-        PREVIEW = false; render(data, {});
-        var fn=$('footNote'); if(fn) fn.innerHTML = '<i>Exemplo embarcado</i> — não foi possível carregar <code>acumulo.csv</code> (abra pelo site publicado).';
-      }catch(e){ PV.showEmpty('Não foi possível carregar a planilha publicada (acumulo.csv).'); }
+      return res.arrayBuffer().then(function(buf){
+        var data = todayISO();                       // CSV não traz data; rótulo é "Atual"/"Hoje"
+        var lojas = P.parseGerencial(new Uint8Array(buf), data);
+        if(!lojas.length) throw new Error('planilha vazia');
+        d.store = {}; d.store[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
+        d.cur = data; d.when = when ? new Date(when) : null; d.preview = false; d.empty = ''; d.sample = false;
+      });
     });
   }
 
-  // Adicionar para TODOS = enviar a planilha ao cofre online (Supabase). Substitui a anterior.
+  // Marca uma aba como "sem planilha".
+  function markEmpty(view){
+    var d = DS[view];
+    d.store = {}; d.cur = null; d.when = null; d.preview = false; d.sample = false;
+    d.empty = (view === 'hoje')
+      ? 'Sem a planilha de hoje. Entre como administrador e use “Adicionar planilha” nesta aba.'
+      : 'Nenhuma planilha publicada. Use “Adicionar planilha” para subir o acumulo.csv.';
+  }
+
+  // Exemplo embarcado (só p/ a aba Acumulado quando o fetch falha, ex.: file://).
+  function sampleInto(view){
+    try{
+      var data = '2026-06-02';
+      var lojas = P.parseGerencial(b64ToBytes(SAMPLE_B64), data);
+      var d = DS[view];
+      d.store = {}; d.store[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
+      d.cur = data; d.when = null; d.preview = false; d.empty = ''; d.sample = true;
+    }catch(e){ markEmpty(view); }
+  }
+
+  // Aplica a aba ativa nos ponteiros globais e desenha (painel ou vazio).
+  function showView(){
+    var d = DS[VIEW];
+    STORE = d.store; CUR = d.cur; PREVIEW = d.preview;
+    syncAdminLabels();
+    if(d.empty){
+      var dt = $('dateText'); if(dt) dt.textContent = '—';
+      PV.showEmpty(d.empty);
+      return;
+    }
+    if(!d.cur || !d.store[d.cur]){ PV.showEmpty('Sem dados para exibir.'); return; }
+    render(d.cur, { atualizado: fmtAtualizado(d.when) });
+  }
+
+  // Troca a aba visível (sem recarregar do cofre).
+  function switchView(view){
+    if(view === VIEW || !DS[view]) return;
+    VIEW = view;
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(b){
+      b.classList.toggle('is-active', b.getAttribute('data-view') === view);
+    });
+    showView();
+  }
+
+  // Rótulos dos botões de admin conforme a aba ativa.
+  function syncAdminLabels(){
+    var nome = (VIEW === 'hoje') ? 'planilha de hoje' : 'planilha';
+    var up = $('updateBtn'); if(up) up.textContent = 'Adicionar ' + nome;
+    var rm = $('removeBtn'); if(rm) rm.textContent = 'Remover ' + nome;
+  }
+
+  // Carrega AS DUAS abas do cofre e mostra a aba ativa.
+  function carregarPublicada(){
+    PV.showEmpty('Carregando planilha…');
+    Promise.all([
+      loadView('acumulado').catch(function(){ sampleInto('acumulado'); }),  // fallback embarcado só aqui
+      loadView('hoje').catch(function(){ markEmpty('hoje'); })
+    ]).then(showView);
+  }
+
+  // Adicionar para TODOS = enviar a planilha ao cofre online (Supabase) NA ABA ATIVA. Substitui a anterior.
   function publicarArquivo(file){
     if(!isAdmin()){ alert('Entre como administrador para adicionar planilha.'); return; }
     if(!supaOn()){ alert('O cofre online (Supabase) ainda não foi configurado.'); return; }
+    var alvo = FILES[VIEW];                                       // acumulo.csv (Acumulado) ou dia.csv (Hoje)
+    var rotulo = (VIEW === 'hoje') ? 'de hoje' : 'acumulada';
     var fr = new FileReader();
     fr.onload = function(){
       var bytes = new Uint8Array(fr.result);
@@ -1124,8 +1190,8 @@ if (typeof window !== 'undefined') {
         var lojas = P.parseGerencial(bytes, todayISO());          // valida ANTES de publicar
         if(!lojas.length) throw new Error('Nenhuma loja encontrada no arquivo.');
       }catch(e){ alert('Arquivo inválido (não parece um GerencialVendas):\n'+e.message); return; }
-      PV.showEmpty('Publicando planilha para todos…');
-      fetch(supaObjURL(), {
+      PV.showEmpty('Publicando planilha '+rotulo+' para todos…');
+      fetch(supaObjURL(alvo), {
         method: 'POST',
         headers: supaHeaders({ 'Content-Type': 'text/csv', 'x-upsert': 'true', 'cache-control': 'no-cache' }),
         body: new Blob([bytes], { type: 'text/csv' })
@@ -1137,15 +1203,17 @@ if (typeof window !== 'undefined') {
     fr.onerror = function(){ alert('Falha ao ler o arquivo.'); };
     fr.readAsArrayBuffer(file);
   }
-  // Remover para TODOS = apagar a planilha do cofre online.
+  // Remover para TODOS = apagar a planilha da ABA ATIVA no cofre online.
   function removerPlanilha(){
     if(!isAdmin()){ alert('Entre como administrador para remover.'); return; }
     if(!supaOn()){ alert('O cofre online (Supabase) ainda não foi configurado.'); return; }
-    if(!confirm('Remover a planilha para TODOS?\nO painel fica vazio até você adicionar outra.')) return;
+    var alvo = FILES[VIEW];
+    var rotulo = (VIEW === 'hoje') ? 'a planilha de hoje' : 'a planilha acumulada';
+    if(!confirm('Remover '+rotulo+' para TODOS?\nEsta aba fica vazia até você adicionar outra.')) return;
     PV.showEmpty('Removendo planilha…');
-    fetch(supaObjURL(), { method: 'DELETE', headers: supaHeaders() }).then(function(res){
+    fetch(supaObjURL(alvo), { method: 'DELETE', headers: supaHeaders() }).then(function(res){
       if(!res.ok && res.status !== 404) return res.text().then(function(t){ throw new Error('HTTP '+res.status+' — '+t); });
-      mostrarVazioRemovida();
+      carregarPublicada();
     }).catch(function(e){ alert('Não foi possível remover:\n'+e.message); carregarPublicada(); });
   }
 
@@ -1160,8 +1228,10 @@ if (typeof window !== 'undefined') {
         var data = P.parseDataFromFilename(file.name) || todayISO();
         var lojas = P.parseGerencial(new Uint8Array(fr.result), data);
         if(!lojas.length) throw new Error('Nenhuma loja encontrada no arquivo.');
-        STORE = {}; STORE[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
-        PREVIEW = true; render(data, {});
+        var d = DS[VIEW];                              // pré-visualiza na aba ativa
+        d.store = {}; d.store[data] = { data: data, lojas: lojas, total: P.computeNetworkTotal(lojas) };
+        d.cur = data; d.preview = true; d.empty = ''; d.sample = false;
+        showView();
       }catch(e){ alert('Não foi possível ler '+file.name+':\n'+e.message); }
     };
     fr.onerror=function(){ alert('Falha ao ler '+file.name); };
@@ -1182,6 +1252,8 @@ if (typeof window !== 'undefined') {
     if(pendingMode === 'publish') publicarArquivo(f); else readFiles([f]);
   });
   $('removeBtn').addEventListener('click', removerPlanilha);
+  $('tabAcumulado').addEventListener('click', function(){ switchView('acumulado'); });
+  $('tabHoje').addEventListener('click', function(){ switchView('hoje'); });
   $('adminBtn').addEventListener('click', adminToggle);
   $('exportBtn').addEventListener('click', exportJSON);
   $('printBtn').addEventListener('click', function(){ window.print(); });

@@ -1279,5 +1279,30 @@ if (typeof window !== 'undefined') {
   carregarPublicada();
 })();
 </script>
+
+<!-- Auto-atualização: mantém todos sempre na versão mais nova (vide sw.js) -->
+<script>
+(function(){
+  if(!('serviceWorker' in navigator)) return;
+  // Havia um SW controlando esta aba quando ela carregou? Se sim, uma troca de
+  // controlador = nova versão publicada -> recarrega 1x. Na 1ª instalação (sem
+  // controlador), NÃO recarrega, pra não dar refresh à toa na primeira visita.
+  var tinhaControle = !!navigator.serviceWorker.controller;
+  var recarregou = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function(){
+    if(recarregou || !tinhaControle) return;
+    recarregou = true; window.location.reload();
+  });
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function(reg){
+      // Ao voltar pro app (reabrir da tela inicial / trocar de aba), checa se
+      // saiu versão nova.
+      document.addEventListener('visibilitychange', function(){
+        if(document.visibilityState === 'visible') reg.update();
+      });
+    }).catch(function(){ /* sem SW: o app funciona normalmente, só sem auto-update */ });
+  });
+})();
+</script>
 </body>
 </html>
